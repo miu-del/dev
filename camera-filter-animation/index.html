@@ -105,10 +105,10 @@ body {
 .card[data-k="right"] { --leak-x: 100%; --leak-y: 0%; }
 .card[data-k="center"] { --leak-x: 100%; --leak-y: 15%; }
 
-.stack[data-filter="disposable"] img { filter: contrast(1.16) saturate(1.28) sepia(.16) brightness(1.04) hue-rotate(-6deg); }
-.stack[data-filter="disposable"] .fx { opacity: 1; }
-.stack[data-filter="disposable"] .fx-grain { opacity: .28; animation: grain .5s steps(4) infinite; }
-.stack.is-fading img, .stack.is-fading .fx { transition: filter .45s ease, opacity .45s ease; }
+.card[data-filter="disposable"] img { filter: contrast(1.16) saturate(1.28) sepia(.16) brightness(1.04) hue-rotate(-6deg); }
+.card[data-filter="disposable"] .fx { opacity: 1; }
+.card[data-filter="disposable"] .fx-grain { opacity: .28; animation: grain .5s steps(4) infinite; }
+.card.is-fading img, .card.is-fading .fx { transition: filter .45s ease, opacity .45s ease; }
 @keyframes grain {
   0% { transform: translate(0, 0); } 25% { transform: translate(-6%, 4%); }
   50% { transform: translate(5%, -3%); } 75% { transform: translate(-3%, -6%); } 100% { transform: translate(0, 0); }
@@ -177,7 +177,7 @@ body {
 .spec dd { margin: 0; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
-  .stack[data-filter="disposable"] .fx-grain { animation: none; }
+  .card[data-filter="disposable"] .fx-grain { animation: none; }
 }
 </style>
 </head>
@@ -196,22 +196,22 @@ body {
       <button class="back" type="button" aria-label="Back">
         <svg width="12" height="20" viewBox="0 0 12 20" fill="none"><path d="M10 2 2 10l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <h2 class="title" data-intro>Which camera<br>would you like to use?</h2>
-      <p class="subtitle" data-intro>Pick a camera that fits your style. Originals are always saved, too.</p>
+      <h2 class="title">Which camera<br>would you like to use?</h2>
+      <p class="subtitle">Pick a camera that fits your style. Originals are always saved, too.</p>
 
-      <div class="stack" id="stack" data-filter="none">
-        <div class="card" data-k="left">
+      <div class="stack" id="stack">
+        <div class="card" data-filter="none" data-k="left">
           <img src="assets/photo-left.jpg" alt="Bouquet of pink tulips and daisies">
           <div class="fx fx-wash"></div><div class="fx fx-leak"></div><div class="fx fx-vignette"></div><div class="fx fx-grain"></div>
           <div class="card-flash"></div>
         </div>
-        <div class="card" data-k="center">
+        <div class="card" data-filter="none" data-k="center">
           <img src="assets/photo-center.jpg" alt="Bride and groom walking out of the venue">
           <div class="fx fx-wash"></div><div class="fx fx-leak"></div><div class="fx fx-vignette"></div><div class="fx fx-grain"></div>
           <div class="fx fx-stamp" data-stamp></div>
           <div class="card-flash"></div>
         </div>
-        <div class="card" data-k="right">
+        <div class="card" data-filter="none" data-k="right">
           <img src="assets/photo-right.jpg" alt="Street signs and a utility pole against blue sky">
           <div class="fx fx-wash"></div><div class="fx fx-leak"></div><div class="fx fx-vignette"></div><div class="fx fx-grain"></div>
           <div class="fx fx-stamp" data-stamp></div>
@@ -219,13 +219,13 @@ body {
         </div>
       </div>
 
-      <div class="choices" role="radiogroup" aria-label="Camera filter" data-intro>
+      <div class="choices" role="radiogroup" aria-label="Camera filter">
         <button class="choice" type="button" role="radio" aria-checked="true" data-value="none"><span>No filter</span></button>
         <button class="choice" type="button" role="radio" aria-checked="false" data-value="disposable"><span>Disposable filter</span></button>
       </div>
-      <p class="desc" id="desc" aria-live="polite" data-intro></p>
-      <div class="dots" aria-hidden="true" data-intro><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
-      <button class="next" type="button" data-intro>Next</button>
+      <p class="desc" id="desc" aria-live="polite"></p>
+      <div class="dots" aria-hidden="true"><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
+      <button class="next" type="button">Next</button>
       <div class="screen-flash" id="screenFlash"></div>
       <div class="home" aria-hidden="true"></div>
     </div>
@@ -240,8 +240,8 @@ body {
     <fieldset class="group">
       <legend>① フラッシュの範囲</legend>
       <div class="seg">
-        <input type="radio" name="scope" id="scope-screen" value="screen" checked><label for="scope-screen">画面全体</label>
-        <input type="radio" name="scope" id="scope-photos" value="photos"><label for="scope-photos">写真のみ</label>
+        <input type="radio" name="scope" id="scope-photos" value="photos" checked><label for="scope-photos">写真ごと（時差）</label>
+        <input type="radio" name="scope" id="scope-screen" value="screen"><label for="scope-screen">画面全体</label>
       </div>
     </fieldset>
 
@@ -269,11 +269,12 @@ body {
       <div class="group"><span class="label">タイミング（実装メモ）</span></div>
       <dl>
         <dt>フラッシュ立ち上がり</dt><dd>0 → 1 / 60ms ease-out</dd>
+        <dt>写真ごとの時差</dt><dd>100ms（左 → 中央 → 右）</dd>
         <dt>ピーク保持</dt><dd>80ms（ここで画像を差し替え）</dd>
         <dt>減衰</dt><dd>1 → 0 / 660ms expo-out</dd>
         <dt>露出オーバー余韻</dt><dd>brightness 1.8 → 1 / 800ms</dd>
         <dt>写真の登場</dt><dd>1000ms expo-out, 90ms stagger</dd>
-        <dt>テキスト類</dt><dd>+0 / +60 / 写真後に下部 UI</dd>
+        <dt>テキスト・ボタン</dt><dd>アニメーションなし（静止）</dd>
       </dl>
     </div>
   </aside>
@@ -348,48 +349,75 @@ body {
   };
 
   // ---- Filter switch ----
+  // Each card carries its own filter state so the three photos can switch one after another
+  const STAGGER = 100; // ms between photos (left → centre → right)
+  let current = 'none';
   let running = [];
-  let swapTimer;
-  const cancelRunning = () => { running.forEach(a => a.cancel()); running = []; clearTimeout(swapTimer); };
+  let timers = [];
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+  const cancelRunning = () => { running.forEach(a => a.cancel()); running = []; timers.forEach(clearTimeout); timers = []; };
 
-  const applyFilter = value => { stack.classList.remove('is-fading'); stack.dataset.filter = value; };
+  const applyFilter = (card, value) => { card.classList.remove('is-fading'); card.dataset.filter = value; };
 
-  const crossfade = value => {
-    stack.classList.add('is-fading');
-    stack.dataset.filter = value;
-    swapTimer = setTimeout(() => stack.classList.remove('is-fading'), 500);
+  const crossfade = (value, stagger) => {
+    cards.forEach((card, i) => later(() => {
+      card.classList.add('is-fading');
+      card.dataset.filter = value;
+      later(() => card.classList.remove('is-fading'), 500);
+    }, stagger ? i * STAGGER : 0));
   };
 
-  const flash = value => {
+  const flashFrames = () => {
     const total = FLASH.rise + FLASH.hold + FLASH.decay;
     const a = FLASH.rise / total, b = (FLASH.rise + FLASH.hold) / total;
-    const targets = opt('scope') === 'screen' ? [screenFlash] : cardFlashes;
-    const frames = [
+    return { total, b, frames: [
       { opacity: 0, easing: 'cubic-bezier(.2, .8, .4, 1)' },
       { opacity: 1, offset: a },
       { opacity: 1, offset: b, easing: EXPO },
       { opacity: 0 }
-    ];
-    targets.forEach(el => running.push(el.animate(frames, { duration: total })));
-    // Overexposed afterglow on the photos, plus a tiny shutter "kick"
-    running.push(stack.animate([
-      { filter: 'brightness(1)', transform: 'scale(1)' },
-      { filter: 'brightness(1.8) contrast(.85)', transform: 'scale(.988)', offset: b },
-      { filter: 'brightness(1)', transform: 'scale(1)' }
-    ], { duration: FLASH.rise + FLASH.hold + 800, easing: 'ease-out' }));
-    // Swap the look while the screen is fully white
-    swapTimer = setTimeout(() => applyFilter(value), FLASH.rise + FLASH.hold / 2);
-    shutter();
+    ] };
+  };
+  // Overexposed afterglow on a photo after its flash
+  const afterglow = (el, delay, b) => running.push(el.animate([
+    { filter: 'brightness(1)' },
+    { filter: 'brightness(1.8) contrast(.85)', offset: b },
+    { filter: 'brightness(1)' }
+  ], { duration: FLASH.rise + FLASH.hold + 800, delay, easing: 'ease-out' }));
+  const kick = () => running.push(stack.animate(
+    [{ transform: 'scale(1)' }, { transform: 'scale(.988)', offset: .15 }, { transform: 'scale(1)' }],
+    { duration: 940, easing: 'ease-out' }));
+  const swapAt = FLASH.rise + FLASH.hold / 2; // swap while the photo is fully white
+
+  const flash = value => {
+    const { total, b, frames } = flashFrames();
+    kick();
+    if (opt('scope') === 'screen') {
+      // One whole-screen flash; all photos swap under it
+      running.push(screenFlash.animate(frames, { duration: total }));
+      cards.forEach(card => afterglow(card, 0, b));
+      later(() => cards.forEach(card => applyFilter(card, value)), swapAt);
+      shutter();
+      return;
+    }
+    // Photo-only flash: left → centre → right, STAGGER ms apart
+    cards.forEach((card, i) => {
+      const delay = i * STAGGER;
+      running.push(cardFlashes[i].animate(frames, { duration: total, delay, fill: 'backwards' }));
+      afterglow(card, delay, b);
+      later(() => applyFilter(card, value), delay + swapAt);
+      later(shutter, delay);
+    });
   };
 
   const select = value => {
-    if (stack.dataset.filter === value) return;
+    if (current === value) return;
+    current = value;
     choices.forEach(c => c.setAttribute('aria-checked', String(c.dataset.value === value)));
     setDesc(value, true);
     cancelRunning();
-    if (reduceMotion.matches) return crossfade(value);
+    if (reduceMotion.matches) return crossfade(value, false);
     if (value === 'disposable' || opt('back') === 'flash') flash(value);
-    else crossfade(value);
+    else crossfade(value, true);
   };
 
   choices.forEach(c => c.addEventListener('click', () => select(c.dataset.value)));
@@ -407,13 +435,6 @@ body {
     introAnims.forEach(a => a.cancel()); introAnims = [];
     if (reduceMotion.matches) return;
     const variant = opt('intro');
-    const textEls = [...phone.querySelectorAll('[data-intro]')];
-    const [title, subtitle, ...bottom] = textEls;
-    const fadeUp = (el, delay, dur = 600, dy = 10) => introAnims.push(el.animate(
-      [{ opacity: 0, transform: `translateY(${dy}px)` }, { opacity: 1, transform: 'none' }],
-      { duration: dur, delay, easing: EXPO, fill: 'backwards' }));
-
-    fadeUp(title, 0); fadeUp(subtitle, 60);
 
     const order = { left: 0, center: 1, right: 2 };
     if (variant === 'float') {
@@ -421,7 +442,7 @@ body {
       cards.forEach(card => {
         const k = card.dataset.k, i = order[k];
         const r = parseFloat(getComputedStyle(card).getPropertyValue('--r'));
-        const delay = 140 + [90, 0, 180][i];
+        const delay = 60 + [90, 0, 180][i];
         introAnims.push(card.animate([
           { opacity: 0, transform: `translateY(64px) rotate(${r * .3}deg) scale(.94)`, filter: 'blur(6px)' },
           { opacity: 1, offset: .45, filter: 'blur(0)' },
@@ -435,7 +456,7 @@ body {
       introAnims.push(c.animate([
         { opacity: 0, transform: 'translateY(40px) scale(.9)' },
         { opacity: 1, transform: 'none' }
-      ], { duration: 800, delay: 120, easing: EXPO, fill: 'backwards' }));
+      ], { duration: 800, delay: 60, easing: EXPO, fill: 'backwards' }));
       cards.filter(el => el !== c).forEach(card => {
         const r = parseFloat(getComputedStyle(card).getPropertyValue('--r'));
         const dx = cBox.x - (card.offsetLeft + card.offsetWidth / 2);
@@ -444,11 +465,9 @@ body {
           { opacity: 0, transform: `translate(${dx}px, ${dy + 40}px) rotate(0deg) scale(.86)` },
           { opacity: 1, transform: `translate(${dx * .9}px, ${dy * .9}px) rotate(${r * .1}deg) scale(.92)`, offset: .25 },
           { opacity: 1, transform: `translate(0, 0) rotate(${r}deg) scale(1)` }
-        ], { duration: 1100, delay: 360, easing: 'cubic-bezier(.3, 1.25, .4, 1)', fill: 'backwards' }));
+        ], { duration: 1100, delay: 300, easing: 'cubic-bezier(.3, 1.25, .4, 1)', fill: 'backwards' }));
       });
     }
-    const afterPhotos = variant === 'float' ? 520 : 700;
-    bottom.forEach((el, i) => fadeUp(el, afterPhotos + i * 50, 500, 8));
   };
 
   document.getElementById('replay').addEventListener('click', intro);
