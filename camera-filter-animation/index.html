@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Camera Filter Flash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono&display=swap">
+<style>
+/* Layout: phone mock on the left, a narrow control rail on the right; stacks below the phone on narrow screens.
+   Single dark look on purpose: the screen being prototyped is dark, so the page around it stays dark too. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b12;
+  --rail: #14141d;
+  --rail-line: #26263a;
+  --ink: #ececf3;
+  --ink-dim: #9a9ab0;
+  --accent: #6d6dff;
+  --stamp: #ff8a2a;
+  --flash: #fffaf0;
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Zen Kaku Gothic New", sans-serif;
+  --font-jp: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-stamp: "Share Tech Mono", ui-monospace, monospace;
+  /* motion tokens (shared with JS) */
+  --ease-out-expo: cubic-bezier(.16, 1, .3, 1);
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-jp);
+  font-size: 14px;
+}
+.layout {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding-inline: 16px;
+  padding-block: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+}
+
+/* ---------- Phone ---------- */
+.phone-slot { width: calc(402px * var(--s, 1)); height: calc(874px * var(--s, 1)); flex: none; }
+.phone {
+  width: 402px; height: 874px;
+  transform: scale(var(--s, 1)); transform-origin: top left;
+  border-radius: 56px;
+  background: #000;
+  box-shadow: 0 0 0 10px #1b1b22, 0 0 0 11px #33333d, 0 40px 80px -20px rgba(0,0,0,.8);
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+  isolation: isolate;
+}
+.status { position: absolute; inset: 0 0 auto 0; height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 6px 34px 0 52px; box-sizing: border-box; font: 600 17px/1 var(--font-ui); letter-spacing: -.01em; }
+.status-icons { display: flex; gap: 6px; align-items: center; }
+.back { position: absolute; left: 22px; top: 60px; width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; color: #fff; cursor: pointer; border-radius: 20px; }
+.back:focus-visible { outline: 2px solid var(--accent); }
+.title {
+  position: absolute; left: 0; right: 0; top: 104px; margin: 0;
+  text-align: center; font: 400 31px/1.05 var(--font-display); letter-spacing: -.01em;
+  font-variation-settings: "opsz" 72;
+}
+.subtitle { position: absolute; left: 40px; right: 40px; top: 176px; margin: 0; text-align: center; font: 400 15px/1.35 var(--font-ui); color: #c8c8cf; letter-spacing: .01em; }
+
+/* Photo stack: every card is positioned unrotated, then rotated about its centre */
+.stack { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.card {
+  position: absolute; border-radius: 18px; overflow: hidden;
+  transform: rotate(var(--r));
+  background: #111;
+  will-change: transform, opacity;
+}
+.card[data-k="left"]   { left: -20px;   top: 303.8px; width: 183px; height: 238px; --r: -7.5deg; z-index: 1; }
+.card[data-k="center"] { left: 114px;   top: 263.5px; width: 182px; height: 247px; --r: 0deg;    z-index: 2; }
+.card[data-k="right"]  { left: 247.7px; top: 304.7px; width: 180px; height: 238px; --r: 7.5deg;  z-index: 3; }
+.card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Disposable look: graded image + warm wash + light leak + vignette + grain + date stamp */
+.fx { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.fx-wash { background: linear-gradient(170deg, rgba(255,186,110,.30), rgba(255,120,70,.18) 60%, rgba(70,110,90,.22)); mix-blend-mode: soft-light; }
+.fx-leak { background: radial-gradient(120% 70% at var(--leak-x, 0%) var(--leak-y, 0%), rgba(255,110,30,.55), rgba(255,60,40,.18) 35%, transparent 60%); mix-blend-mode: screen; }
+.fx-vignette { background: radial-gradient(ellipse 85% 75% at 50% 50%, transparent 55%, rgba(20,8,0,.55) 100%); }
+.fx-grain {
+  inset: -50%;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 1.4 -.2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+}
+.fx-stamp {
+  inset: auto 12px 10px auto; font: 15px/1 var(--font-stamp); letter-spacing: .06em;
+  color: var(--stamp); text-shadow: 0 0 4px rgba(255,120,30,.9), 0 0 10px rgba(255,90,20,.5);
+}
+.card[data-k="left"]  { --leak-x: 0%;   --leak-y: 100%; }
+.card[data-k="right"] { --leak-x: 100%; --leak-y: 0%; }
+.card[data-k="center"] { --leak-x: 100%; --leak-y: 15%; }
+
+.stack[data-filter="disposable"] img { filter: contrast(1.16) saturate(1.28) sepia(.16) brightness(1.04) hue-rotate(-6deg); }
+.stack[data-filter="disposable"] .fx { opacity: 1; }
+.stack[data-filter="disposable"] .fx-grain { opacity: .28; animation: grain .5s steps(4) infinite; }
+.stack.is-fading img, .stack.is-fading .fx { transition: filter .45s ease, opacity .45s ease; }
+@keyframes grain {
+  0% { transform: translate(0, 0); } 25% { transform: translate(-6%, 4%); }
+  50% { transform: translate(5%, -3%); } 75% { transform: translate(-3%, -6%); } 100% { transform: translate(0, 0); }
+}
+
+/* Per-card flash (scope: photos) */
+.card-flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; z-index: 5;
+  background: radial-gradient(circle at 50% 42%, #fff 0 35%, var(--flash) 100%); }
+/* Whole-screen flash (scope: screen) */
+.screen-flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; z-index: 20;
+  background: radial-gradient(circle at 50% 46%, #fff 0 38%, var(--flash) 100%); }
+
+/* Filter choice */
+.choices { position: absolute; left: 16px; right: 16px; top: 633px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 2; }
+.choice {
+  height: 53px; border-radius: 9px; border: 1px solid #3a3a40; background: #1c1c1f; color: #fff;
+  font: 600 16.5px/1 var(--font-ui); letter-spacing: .01em; cursor: pointer;
+  transition: background-color .25s ease, border-color .25s ease, transform .12s ease, box-shadow .25s ease;
+  position: relative; overflow: hidden;
+}
+.choice::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #121566, #070838); opacity: 0; transition: opacity .25s ease; }
+.choice span { position: relative; }
+.choice[aria-checked="true"] { border-color: #7a7cff; box-shadow: 0 0 0 .5px #7a7cff inset; }
+.choice[aria-checked="true"]::before { opacity: 1; }
+.choice:active { transform: scale(.97); }
+.choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.desc { position: absolute; left: 36px; right: 36px; top: 700px; margin: 0; text-align: center; font: 400 15px/1.45 var(--font-ui); color: #bdbdc4; z-index: 2; min-height: 44px; }
+.dots { position: absolute; left: 0; right: 0; top: 756px; display: flex; justify-content: center; gap: 6px; z-index: 2; }
+.dots i { width: 6px; height: 6px; border-radius: 3px; background: #5f5f66; }
+.dots i.on { width: 18px; background: #fff; }
+.next {
+  position: absolute; left: 16px; right: 16px; top: 780px; height: 59px; border-radius: 15px; z-index: 2;
+  border: 1px solid #5b5bff; background: linear-gradient(180deg, #3434f2, #2121c4); color: #fff;
+  font: 600 17px/1 var(--font-ui); cursor: pointer;
+}
+.next:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.home { position: absolute; left: 50%; bottom: 8px; width: 144px; height: 5px; margin-left: -72px; border-radius: 3px; background: #fff; z-index: 21; }
+
+/* ---------- Control rail ---------- */
+.rail {
+  width: 340px; max-width: 100%; box-sizing: border-box;
+  background: var(--rail); border: 1px solid var(--rail-line); border-radius: 14px;
+  padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 22px;
+}
+.rail h1 { margin: 0; font: 500 22px/1.2 var(--font-display); letter-spacing: -.01em; text-wrap: balance; }
+.rail .lead { margin: 6px 0 0; color: var(--ink-dim); line-height: 1.6; }
+.group { display: flex; flex-direction: column; gap: 8px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.group legend, .group .label { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ink-dim); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 10px; background: var(--page); border: 1px solid var(--rail-line); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { text-align: center; padding: 9px 6px; border-radius: 7px; cursor: pointer; color: var(--ink-dim); font-weight: 500; transition: background-color .2s, color .2s; }
+.seg input:checked + label { background: var(--rail-line); color: var(--ink); }
+.seg input:focus-visible + label { outline: 2px solid var(--accent); }
+.row { display: flex; align-items: center; gap: 10px; }
+.btn {
+  appearance: none; border: 1px solid var(--accent); background: transparent; color: var(--ink);
+  border-radius: 9px; padding: 10px 14px; font: 500 14px/1 var(--font-jp); cursor: pointer;
+}
+.btn:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink); }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
+.spec dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
+.spec dt { color: var(--ink-dim); }
+.spec dd { margin: 0; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stack[data-filter="disposable"] .fx-grain { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="phone-slot" id="phoneSlot">
+    <div class="phone" id="phone">
+      <div class="status" aria-hidden="true">
+        <span>9:41</span>
+        <span class="status-icons">
+          <svg width="19" height="12" viewBox="0 0 19 12" fill="#fff"><rect x="0" y="8" width="3.2" height="4" rx="1"/><rect x="5" y="5.5" width="3.2" height="6.5" rx="1"/><rect x="10" y="3" width="3.2" height="9" rx="1"/><rect x="15" y="0" width="3.2" height="12" rx="1"/></svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="#fff"><path d="M8.5 2.4c2.3 0 4.4.9 6 2.4l1.2-1.2C13.8 1.7 11.3.6 8.5.6S3.2 1.7 1.3 3.6l1.2 1.2c1.6-1.5 3.7-2.4 6-2.4zm0 3.4c1.4 0 2.6.5 3.6 1.4l1.2-1.2C12 4.8 10.3 4.1 8.5 4.1S5 4.8 3.7 6l1.2 1.2c1-.9 2.2-1.4 3.6-1.4zm0 3.4c-.6 0-1.2.2-1.6.6l1.6 1.6 1.6-1.6c-.4-.4-1-.6-1.6-.6z"/></svg>
+          <svg width="27" height="13" viewBox="0 0 27 13" fill="none"><rect x=".5" y=".5" width="23" height="12" rx="3.5" stroke="#fff" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2" fill="#fff"/><path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2z" fill="#fff" opacity=".4"/></svg>
+        </span>
+      </div>
+      <button class="back" type="button" aria-label="Back">
+        <svg width="12" height="20" viewBox="0 0 12 20" fill="none"><path d="M10 2 2 10l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2 class="title" data-intro>Which camera<br>would you like to use?</h2>
+      <p class="subtitle" data-intro>Pick a camera that fits your style. Originals are always saved, too.</p>
+
+      <div class="stack" id="stack" data-filter="none">
+        <div class="card" data-k="left">
+          <img src="assets/photo-left.jpg" alt="Bouquet of pink tulips and daisies">
+          <div class="fx fx-wash"></div><div class="fx fx-leak"></div><div class="fx fx-vignette"></div><div class="fx fx-grain"></div>
+          <div class="card-flash"></div>
+        </div>
+        <div class="card" data-k="center">
+          <img src="assets/photo-center.jpg" alt="Bride and groom walking out of the venue">
+          <div class="fx fx-wash"></div><div class="fx fx-leak"></div><div class="fx fx-vignette"></div><div class="fx fx-grain"></div>
+          <div class="fx fx-stamp" data-stamp></div>
+          <div class="card-flash"></div>
+        </div>
+        <div class="card" data-k="right">
+          <img src="assets/photo-right.jpg" alt="Street signs and a utility pole against blue sky">
+          <div class="fx fx-wash"></div><div class="fx fx-leak"></div><div class="fx fx-vignette"></div><div class="fx fx-grain"></div>
+          <div class="fx fx-stamp" data-stamp></div>
+          <div class="card-flash"></div>
+        </div>
+      </div>
+
+      <div class="choices" role="radiogroup" aria-label="Camera filter" data-intro>
+        <button class="choice" type="button" role="radio" aria-checked="true" data-value="none"><span>No filter</span></button>
+        <button class="choice" type="button" role="radio" aria-checked="false" data-value="disposable"><span>Disposable filter</span></button>
+      </div>
+      <p class="desc" id="desc" aria-live="polite" data-intro></p>
+      <div class="dots" aria-hidden="true" data-intro><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
+      <button class="next" type="button" data-intro>Next</button>
+      <div class="screen-flash" id="screenFlash"></div>
+      <div class="home" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <aside class="rail">
+    <div>
+      <h1>Camera Filter Flash</h1>
+      <p class="lead">Moments カメラ作成フロー「Which camera」画面のモーション試作。下のボタンでフィルターを切り替えると、使い捨てカメラのフラッシュで写真が切り替わります。</p>
+    </div>
+
+    <fieldset class="group">
+      <legend>① フラッシュの範囲</legend>
+      <div class="seg">
+        <input type="radio" name="scope" id="scope-screen" value="screen" checked><label for="scope-screen">画面全体</label>
+        <input type="radio" name="scope" id="scope-photos" value="photos"><label for="scope-photos">写真のみ</label>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend>No filter に戻すとき</legend>
+      <div class="seg">
+        <input type="radio" name="back" id="back-fade" value="fade" checked><label for="back-fade">クロスフェード</label>
+        <input type="radio" name="back" id="back-flash" value="flash"><label for="back-flash">フラッシュ</label>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend>② 写真の登場</legend>
+      <div class="seg">
+        <input type="radio" name="intro" id="intro-float" value="float" checked><label for="intro-float">ふわっと浮上</label>
+        <input type="radio" name="intro" id="intro-fan" value="fan"><label for="intro-fan">中央から広がる</label>
+      </div>
+      <div class="row">
+        <button class="btn" type="button" id="replay">画面遷移を再生</button>
+        <label class="check"><input type="checkbox" id="sound"> シャッター音</label>
+      </div>
+    </fieldset>
+
+    <div class="spec">
+      <div class="group"><span class="label">タイミング（実装メモ）</span></div>
+      <dl>
+        <dt>フラッシュ立ち上がり</dt><dd>0 → 1 / 60ms ease-out</dd>
+        <dt>ピーク保持</dt><dd>80ms（ここで画像を差し替え）</dd>
+        <dt>減衰</dt><dd>1 → 0 / 660ms expo-out</dd>
+        <dt>露出オーバー余韻</dt><dd>brightness 1.8 → 1 / 800ms</dd>
+        <dt>写真の登場</dt><dd>1000ms expo-out, 90ms stagger</dd>
+        <dt>テキスト類</dt><dd>+0 / +60 / 写真後に下部 UI</dd>
+      </dl>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const phone = document.getElementById('phone');
+  const slot = document.getElementById('phoneSlot');
+  const stack = document.getElementById('stack');
+  const screenFlash = document.getElementById('screenFlash');
+  const desc = document.getElementById('desc');
+  const cards = [...stack.querySelectorAll('.card')];
+  const cardFlashes = [...stack.querySelectorAll('.card-flash')];
+  const choices = [...document.querySelectorAll('.choice')];
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+  const COPY = {
+    none: "Photos appear as soon as they're taken, so everyone can share them on the spot.",
+    disposable: 'Photos develop overnight, just like film. Everyone sees them the next morning.'
+  };
+  const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
+  const FLASH = { rise: 60, hold: 80, decay: 660 };
+
+  // Film date stamp, e.g. '26 10 06
+  const d = new Date();
+  const stamp = `'${String(d.getFullYear()).slice(2)} ${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getDate()).padStart(2, '0')}`;
+  document.querySelectorAll('[data-stamp]').forEach(el => { el.textContent = stamp; });
+
+  // Fit the 402×874 phone into the viewport
+  const fit = () => {
+    const narrow = innerWidth < 820;
+    const availH = narrow ? Infinity : innerHeight - 48;
+    const s = Math.min(1, availH / 874, (innerWidth - 32) / 402);
+    slot.style.setProperty('--s', s);
+    phone.style.setProperty('--s', s);
+  };
+  addEventListener('resize', fit); fit();
+
+  const opt = name => document.querySelector(`input[name="${name}"]:checked`).value;
+
+  // ---- Shutter sound (synthesised, off by default) ----
+  let audio;
+  const shutter = () => {
+    if (!document.getElementById('sound').checked) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const t = audio.currentTime;
+      const len = Math.floor(audio.sampleRate * .09);
+      const buf = audio.createBuffer(1, len, audio.sampleRate);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      const src = audio.createBufferSource(); src.buffer = buf;
+      const bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = .8;
+      const g = audio.createGain(); g.gain.setValueAtTime(.9, t);
+      src.connect(bp).connect(g).connect(audio.destination); src.start(t);
+      const src2 = audio.createBufferSource(); src2.buffer = buf;
+      const lp = audio.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200;
+      const g2 = audio.createGain(); g2.gain.value = .5;
+      src2.connect(lp).connect(g2).connect(audio.destination); src2.start(t + .05);
+    } catch (e) { /* audio is optional */ }
+  };
+
+  // ---- Description text swap ----
+  const setDesc = (value, animate) => {
+    if (!animate || reduceMotion.matches) { desc.textContent = COPY[value]; return; }
+    desc.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(4px)' }], { duration: 140, easing: 'ease-in', fill: 'forwards' })
+      .finished.then(() => {
+        desc.textContent = COPY[value];
+        desc.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: EXPO, fill: 'forwards' });
+      });
+  };
+
+  // ---- Filter switch ----
+  let running = [];
+  let swapTimer;
+  const cancelRunning = () => { running.forEach(a => a.cancel()); running = []; clearTimeout(swapTimer); };
+
+  const applyFilter = value => { stack.classList.remove('is-fading'); stack.dataset.filter = value; };
+
+  const crossfade = value => {
+    stack.classList.add('is-fading');
+    stack.dataset.filter = value;
+    swapTimer = setTimeout(() => stack.classList.remove('is-fading'), 500);
+  };
+
+  const flash = value => {
+    const total = FLASH.rise + FLASH.hold + FLASH.decay;
+    const a = FLASH.rise / total, b = (FLASH.rise + FLASH.hold) / total;
+    const targets = opt('scope') === 'screen' ? [screenFlash] : cardFlashes;
+    const frames = [
+      { opacity: 0, easing: 'cubic-bezier(.2, .8, .4, 1)' },
+      { opacity: 1, offset: a },
+      { opacity: 1, offset: b, easing: EXPO },
+      { opacity: 0 }
+    ];
+    targets.forEach(el => running.push(el.animate(frames, { duration: total })));
+    // Overexposed afterglow on the photos, plus a tiny shutter "kick"
+    running.push(stack.animate([
+      { filter: 'brightness(1)', transform: 'scale(1)' },
+      { filter: 'brightness(1.8) contrast(.85)', transform: 'scale(.988)', offset: b },
+      { filter: 'brightness(1)', transform: 'scale(1)' }
+    ], { duration: FLASH.rise + FLASH.hold + 800, easing: 'ease-out' }));
+    // Swap the look while the screen is fully white
+    swapTimer = setTimeout(() => applyFilter(value), FLASH.rise + FLASH.hold / 2);
+    shutter();
+  };
+
+  const select = value => {
+    if (stack.dataset.filter === value) return;
+    choices.forEach(c => c.setAttribute('aria-checked', String(c.dataset.value === value)));
+    setDesc(value, true);
+    cancelRunning();
+    if (reduceMotion.matches) return crossfade(value);
+    if (value === 'disposable' || opt('back') === 'flash') flash(value);
+    else crossfade(value);
+  };
+
+  choices.forEach(c => c.addEventListener('click', () => select(c.dataset.value)));
+  document.querySelector('.choices').addEventListener('keydown', e => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+    e.preventDefault();
+    const i = choices.findIndex(c => c.getAttribute('aria-checked') === 'true');
+    const next = choices[(i + 1) % choices.length];
+    next.focus(); select(next.dataset.value);
+  });
+
+  // ---- Entrance ----
+  let introAnims = [];
+  const intro = () => {
+    introAnims.forEach(a => a.cancel()); introAnims = [];
+    if (reduceMotion.matches) return;
+    const variant = opt('intro');
+    const textEls = [...phone.querySelectorAll('[data-intro]')];
+    const [title, subtitle, ...bottom] = textEls;
+    const fadeUp = (el, delay, dur = 600, dy = 10) => introAnims.push(el.animate(
+      [{ opacity: 0, transform: `translateY(${dy}px)` }, { opacity: 1, transform: 'none' }],
+      { duration: dur, delay, easing: EXPO, fill: 'backwards' }));
+
+    fadeUp(title, 0); fadeUp(subtitle, 60);
+
+    const order = { left: 0, center: 1, right: 2 };
+    if (variant === 'float') {
+      // Each card drifts up from slightly below, settling into its tilt
+      cards.forEach(card => {
+        const k = card.dataset.k, i = order[k];
+        const r = parseFloat(getComputedStyle(card).getPropertyValue('--r'));
+        const delay = 140 + [90, 0, 180][i];
+        introAnims.push(card.animate([
+          { opacity: 0, transform: `translateY(64px) rotate(${r * .3}deg) scale(.94)`, filter: 'blur(6px)' },
+          { opacity: 1, offset: .45, filter: 'blur(0)' },
+          { opacity: 1, transform: `translateY(0) rotate(${r}deg) scale(1)`, filter: 'blur(0)' }
+        ], { duration: 1000, delay, easing: EXPO, fill: 'backwards' }));
+      });
+    } else {
+      // Centre card rises first, side cards fan out from behind it
+      const c = cards.find(el => el.dataset.k === 'center');
+      const cBox = { x: c.offsetLeft + c.offsetWidth / 2, y: c.offsetTop + c.offsetHeight / 2 };
+      introAnims.push(c.animate([
+        { opacity: 0, transform: 'translateY(40px) scale(.9)' },
+        { opacity: 1, transform: 'none' }
+      ], { duration: 800, delay: 120, easing: EXPO, fill: 'backwards' }));
+      cards.filter(el => el !== c).forEach(card => {
+        const r = parseFloat(getComputedStyle(card).getPropertyValue('--r'));
+        const dx = cBox.x - (card.offsetLeft + card.offsetWidth / 2);
+        const dy = cBox.y - (card.offsetTop + card.offsetHeight / 2);
+        introAnims.push(card.animate([
+          { opacity: 0, transform: `translate(${dx}px, ${dy + 40}px) rotate(0deg) scale(.86)` },
+          { opacity: 1, transform: `translate(${dx * .9}px, ${dy * .9}px) rotate(${r * .1}deg) scale(.92)`, offset: .25 },
+          { opacity: 1, transform: `translate(0, 0) rotate(${r}deg) scale(1)` }
+        ], { duration: 1100, delay: 360, easing: 'cubic-bezier(.3, 1.25, .4, 1)', fill: 'backwards' }));
+      });
+    }
+    const afterPhotos = variant === 'float' ? 520 : 700;
+    bottom.forEach((el, i) => fadeUp(el, afterPhotos + i * 50, 500, 8));
+  };
+
+  document.getElementById('replay').addEventListener('click', intro);
+  document.querySelectorAll('input[name="intro"]').forEach(r => r.addEventListener('change', intro));
+
+  setDesc('none', false);
+  const start = () => intro();
+  if (document.readyState === 'complete') start(); else addEventListener('load', start);
+})();
+</script>
+</body>
+</html>
