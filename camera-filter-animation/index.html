@@ -272,6 +272,7 @@ body {
         <dt>写真ごとの時差</dt><dd>100ms（左 → 中央 → 右）</dd>
         <dt>ピーク保持</dt><dd>80ms（ここで画像を差し替え）</dd>
         <dt>減衰</dt><dd>1 → 0 / 660ms expo-out</dd>
+        <dt>写真の揺れ</dt><dd>各写真個別 760ms（沈み → 戻り）</dd>
         <dt>露出オーバー余韻</dt><dd>brightness 1.8 → 1 / 800ms</dd>
         <dt>写真の登場</dt><dd>1000ms expo-out, 90ms stagger</dd>
         <dt>テキスト・ボタン</dt><dd>アニメーションなし（静止）</dd>
@@ -360,6 +361,7 @@ body {
   const applyFilter = (card, value) => { card.classList.remove('is-fading'); card.dataset.filter = value; };
 
   const crossfade = (value, stagger) => {
+    if (stagger) cards.forEach((card, i) => nudge(card, i * STAGGER));
     cards.forEach((card, i) => later(() => {
       card.classList.add('is-fading');
       card.dataset.filter = value;
@@ -383,18 +385,31 @@ body {
     { filter: 'brightness(1.8) contrast(.85)', offset: b },
     { filter: 'brightness(1)' }
   ], { duration: FLASH.rise + FLASH.hold + 800, delay, easing: 'ease-out' }));
-  const kick = () => running.push(stack.animate(
-    [{ transform: 'scale(1)' }, { transform: 'scale(.988)', offset: .15 }, { transform: 'scale(1)' }],
-    { duration: 940, easing: 'ease-out' }));
+  // Each photo reacts on its own: a small dip, tilt and drift, then settles with a slight overshoot
+  const NUDGE = {
+    left:   { x: -3, y: -4, r: -1.6, s: .965 },
+    center: { x:  0, y:  5, r:  0.8, s: .955 },
+    right:  { x:  4, y: -3, r:  1.8, s: .97 }
+  };
+  const nudge = (card, delay) => {
+    const r = parseFloat(getComputedStyle(card).getPropertyValue('--r'));
+    const n = NUDGE[card.dataset.k];
+    const at = (k, sc) => `translate(${n.x * k}px, ${n.y * k}px) rotate(${r + n.r * k}deg) scale(${sc})`;
+    running.push(card.animate([
+      { transform: at(0, 1) },
+      { transform: at(1, n.s), offset: .2, easing: 'cubic-bezier(.3, 0, .2, 1)' },
+      { transform: at(-.3, 1.008), offset: .55, easing: 'ease-in-out' },
+      { transform: at(0, 1) }
+    ], { duration: 760, delay, easing: 'cubic-bezier(.2, .7, .3, 1)' }));
+  };
   const swapAt = FLASH.rise + FLASH.hold / 2; // swap while the photo is fully white
 
   const flash = value => {
     const { total, b, frames } = flashFrames();
-    kick();
     if (opt('scope') === 'screen') {
       // One whole-screen flash; all photos swap under it
       running.push(screenFlash.animate(frames, { duration: total }));
-      cards.forEach(card => afterglow(card, 0, b));
+      cards.forEach((card, i) => { afterglow(card, 0, b); nudge(card, i * STAGGER); });
       later(() => cards.forEach(card => applyFilter(card, value)), swapAt);
       shutter();
       return;
@@ -404,6 +419,7 @@ body {
       const delay = i * STAGGER;
       running.push(cardFlashes[i].animate(frames, { duration: total, delay, fill: 'backwards' }));
       afterglow(card, delay, b);
+      nudge(card, delay);
       later(() => applyFilter(card, value), delay + swapAt);
       later(shutter, delay);
     });
