@@ -108,12 +108,9 @@ body {
   50% { transform: translate(5%, -3%); } 75% { transform: translate(-3%, -6%); } 100% { transform: translate(0, 0); }
 }
 
-/* Per-card flash (scope: photos) */
+/* Per-photo flash, fired left → centre → right */
 .card-flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; z-index: 5;
   background: radial-gradient(circle at 50% 42%, #fff 0 35%, var(--flash) 100%); }
-/* Whole-screen flash (scope: screen) */
-.screen-flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; z-index: 20;
-  background: radial-gradient(circle at 50% 46%, #fff 0 38%, var(--flash) 100%); }
 
 /* Filter choice */
 .choices { position: absolute; left: 16px; right: 16px; top: 633px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 2; }
@@ -151,11 +148,6 @@ body {
 .rail .lead { margin: 6px 0 0; color: var(--ink-dim); line-height: 1.6; }
 .group { display: flex; flex-direction: column; gap: 8px; border: 0; margin: 0; padding: 0; min-width: 0; }
 .group legend, .group .label { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ink-dim); }
-.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 10px; background: var(--page); border: 1px solid var(--rail-line); }
-.seg input { position: absolute; opacity: 0; pointer-events: none; }
-.seg label { text-align: center; padding: 9px 6px; border-radius: 7px; cursor: pointer; color: var(--ink-dim); font-weight: 500; transition: background-color .2s, color .2s; }
-.seg input:checked + label { background: var(--rail-line); color: var(--ink); }
-.seg input:focus-visible + label { outline: 2px solid var(--accent); }
 .row { display: flex; align-items: center; gap: 10px; }
 .btn {
   appearance: none; border: 1px solid var(--accent); background: transparent; color: var(--ink);
@@ -166,6 +158,9 @@ body {
 .check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink); }
 .check input { accent-color: var(--accent); width: 16px; height: 16px; }
 .spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
+.decided { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; }
+.decided dt { color: var(--ink-dim); }
+.decided dd { margin: 0; color: var(--ink); font-weight: 500; }
 .spec dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
 .spec dt { color: var(--ink-dim); }
 .spec dd { margin: 0; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
@@ -218,7 +213,6 @@ body {
       <p class="desc" id="desc" aria-live="polite"></p>
       <div class="dots" aria-hidden="true"><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
       <button class="next" type="button">Next</button>
-      <div class="screen-flash" id="screenFlash"></div>
       <div class="home" aria-hidden="true"></div>
     </div>
   </div>
@@ -226,31 +220,20 @@ body {
   <aside class="rail">
     <div>
       <h1>Camera Filter Flash</h1>
-      <p class="lead">Moments カメラ作成フロー「Which camera」画面のモーション試作。下のボタンでフィルターを切り替えると、使い捨てカメラのフラッシュで写真が切り替わります。</p>
+      <p class="lead">Moments カメラ作成フロー「Which camera」画面のモーション試作。画面のボタンでフィルターを切り替えると、写真が1枚ずつフラッシュして切り替わります。</p>
+    </div>
+
+    <div class="group">
+      <span class="label">確定した仕様</span>
+      <dl class="decided">
+        <dt>フラッシュの範囲</dt><dd>写真ごと（時差）</dd>
+        <dt>No filter に戻すとき</dt><dd>クロスフェード</dd>
+        <dt>写真の登場</dt><dd>ふわっと浮上</dd>
+      </dl>
     </div>
 
     <fieldset class="group">
-      <legend>① フラッシュの範囲</legend>
-      <div class="seg">
-        <input type="radio" name="scope" id="scope-photos" value="photos" checked><label for="scope-photos">写真ごと（時差）</label>
-        <input type="radio" name="scope" id="scope-screen" value="screen"><label for="scope-screen">画面全体</label>
-      </div>
-    </fieldset>
-
-    <fieldset class="group">
-      <legend>No filter に戻すとき</legend>
-      <div class="seg">
-        <input type="radio" name="back" id="back-fade" value="fade" checked><label for="back-fade">クロスフェード</label>
-        <input type="radio" name="back" id="back-flash" value="flash"><label for="back-flash">フラッシュ</label>
-      </div>
-    </fieldset>
-
-    <fieldset class="group">
-      <legend>② 写真の登場</legend>
-      <div class="seg">
-        <input type="radio" name="intro" id="intro-float" value="float" checked><label for="intro-float">ふわっと浮上</label>
-        <input type="radio" name="intro" id="intro-fan" value="fan"><label for="intro-fan">中央から広がる</label>
-      </div>
+      <legend>プレビュー</legend>
       <div class="row">
         <button class="btn" type="button" id="replay">画面遷移を再生</button>
         <label class="check"><input type="checkbox" id="sound"> シャッター音</label>
@@ -278,7 +261,6 @@ body {
   const phone = document.getElementById('phone');
   const slot = document.getElementById('phoneSlot');
   const stack = document.getElementById('stack');
-  const screenFlash = document.getElementById('screenFlash');
   const desc = document.getElementById('desc');
   const cards = [...stack.querySelectorAll('.card')];
   const cardFlashes = [...stack.querySelectorAll('.card-flash')];
@@ -303,7 +285,6 @@ body {
   };
   addEventListener('resize', fit); fit();
 
-  const opt = name => document.querySelector(`input[name="${name}"]:checked`).value;
 
   // ---- Shutter sound (synthesised, off by default) ----
   let audio;
@@ -394,15 +375,7 @@ body {
 
   const flash = value => {
     const { total, b, frames } = flashFrames();
-    if (opt('scope') === 'screen') {
-      // One whole-screen flash; all photos swap under it
-      running.push(screenFlash.animate(frames, { duration: total }));
-      cards.forEach((card, i) => { afterglow(card, 0, b); nudge(card, i * STAGGER); });
-      later(() => cards.forEach(card => applyFilter(card, value)), swapAt);
-      shutter();
-      return;
-    }
-    // Photo-only flash: left → centre → right, STAGGER ms apart
+    // Each photo flashes in turn: left → centre → right, STAGGER ms apart
     cards.forEach((card, i) => {
       const delay = i * STAGGER;
       running.push(cardFlashes[i].animate(frames, { duration: total, delay, fill: 'backwards' }));
@@ -420,7 +393,8 @@ body {
     setDesc(value, true);
     cancelRunning();
     if (reduceMotion.matches) return crossfade(value, false);
-    if (value === 'disposable' || opt('back') === 'flash') flash(value);
+    // Turning the filter on fires the flash; turning it off crossfades
+    if (value === 'disposable') flash(value);
     else crossfade(value, true);
   };
 
@@ -438,11 +412,8 @@ body {
   const intro = () => {
     introAnims.forEach(a => a.cancel()); introAnims = [];
     if (reduceMotion.matches) return;
-    const variant = opt('intro');
-
     const order = { left: 0, center: 1, right: 2 };
-    if (variant === 'float') {
-      // Each card drifts up from slightly below, settling into its tilt
+    // Each card drifts up from slightly below, settling into its tilt
       cards.forEach(card => {
         const k = card.dataset.k, i = order[k];
         const r = parseFloat(getComputedStyle(card).getPropertyValue('--r'));
@@ -453,29 +424,9 @@ body {
           { opacity: 1, transform: `translateY(0) rotate(${r}deg) scale(1)`, filter: 'blur(0)' }
         ], { duration: 1000, delay, easing: EXPO, fill: 'backwards' }));
       });
-    } else {
-      // Centre card rises first, side cards fan out from behind it
-      const c = cards.find(el => el.dataset.k === 'center');
-      const cBox = { x: c.offsetLeft + c.offsetWidth / 2, y: c.offsetTop + c.offsetHeight / 2 };
-      introAnims.push(c.animate([
-        { opacity: 0, transform: 'translateY(40px) scale(.9)' },
-        { opacity: 1, transform: 'none' }
-      ], { duration: 800, delay: 60, easing: EXPO, fill: 'backwards' }));
-      cards.filter(el => el !== c).forEach(card => {
-        const r = parseFloat(getComputedStyle(card).getPropertyValue('--r'));
-        const dx = cBox.x - (card.offsetLeft + card.offsetWidth / 2);
-        const dy = cBox.y - (card.offsetTop + card.offsetHeight / 2);
-        introAnims.push(card.animate([
-          { opacity: 0, transform: `translate(${dx}px, ${dy + 40}px) rotate(0deg) scale(.86)` },
-          { opacity: 1, transform: `translate(${dx * .9}px, ${dy * .9}px) rotate(${r * .1}deg) scale(.92)`, offset: .25 },
-          { opacity: 1, transform: `translate(0, 0) rotate(${r}deg) scale(1)` }
-        ], { duration: 1100, delay: 300, easing: 'cubic-bezier(.3, 1.25, .4, 1)', fill: 'backwards' }));
-      });
-    }
   };
 
   document.getElementById('replay').addEventListener('click', intro);
-  document.querySelectorAll('input[name="intro"]').forEach(r => r.addEventListener('change', intro));
 
   setDesc('none', false);
   const start = () => intro();
