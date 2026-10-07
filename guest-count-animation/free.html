@@ -45,10 +45,10 @@ body {
 }
 
 /* ---------- Phone ---------- */
-.phone-slot { width: calc(402px * var(--s, 1)); height: calc(874px * var(--s, 1)); flex: none; }
+.phone-slot { width: calc(402px * var(--s, 1)); height: calc(var(--h, 874px) * var(--s, 1)); flex: none; }
 
 .phone {
-  width: 402px; height: 874px;
+  width: 402px; height: var(--h, 874px);
   transform: scale(var(--s, 1)); transform-origin: top left;
   border-radius: 56px;
   background: #000;
@@ -70,10 +70,13 @@ body {
   text-align: center; font: 400 21px/31px var(--font-display); letter-spacing: -.015em;
   font-variation-settings: "opsz" 72; z-index: 2;
 }
+.phone.short .title { top: 84px; }
+.phone.short .subtitle { top: 153px; }
 .subtitle { position: absolute; left: 40px; right: 40px; top: 175px; margin: 0; text-align: center; font: 400 12.5px/17px var(--font-ui); color: #c8c8cf; letter-spacing: .01em; z-index: 2; }
 
 /* Crowd stage: the camera (.world) scales around the front group's feet to "zoom out" */
-.stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; }
+/* The stage keeps its 402×230 world and is placed and scaled by JS into whatever height is left */
+.stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; transform-origin: 50% 0; }
 .world { position: absolute; inset: 0; transform-origin: 201px 222px; }
 /* Fireworks burst behind the title and the crowd */
 #sky { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 0; }
@@ -103,16 +106,17 @@ body {
 .guest > div { position: absolute; inset: 0; background: 0 0 / 100% 100% no-repeat; mask-size: 100% 100%; -webkit-mask-size: 100% 100%; }
 
 /* Helicopters fly above the crowd; the confetti canvas sits on top of everything in the scene */
-.deco { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 1; overflow: visible; }
+/* String lights ride with the stage; the svg keeps the full-screen coordinates it was drawn in */
+.deco { position: absolute; left: 0; top: -214px; width: 402px; height: 452px; pointer-events: none; z-index: 1; overflow: visible; }
 
-/* Slider card */
-.picker { position: absolute; left: 16px; right: 16px; top: 486px; height: 112px; z-index: 2; }
-/* Count and price stacked in the centre, the slider full width below */
-.picker-head { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
-.count { display: inline-block; font: 600 26px/32px var(--font-ui); letter-spacing: -.01em; }
-.count small { font-size: 13px; font-weight: 600; margin-left: 2px; }
-.price { display: inline-block; font: 600 13.5px/18px var(--font-ui); color: #b9b9c0; }
-.track { position: absolute; left: 14px; right: 16px; top: 77px; height: 32px; cursor: pointer; touch-action: none; outline: none; }
+/* Settings card, anchored above the note and the Create button: guests (count, price, slider) and photos per person */
+.picker { position: absolute; left: 16px; right: 16px; bottom: 166px; height: 140px; border-radius: 16px; background: #1c1c1e; z-index: 2; }
+.picker-head { position: absolute; left: 17px; right: 17px; top: 14px; display: flex; justify-content: space-between; font: 600 14px/18px var(--font-ui); font-variant-numeric: tabular-nums; }
+.picker-head span { display: inline-block; }
+.track { position: absolute; left: 14px; right: 16px; top: 40px; height: 32px; cursor: pointer; touch-action: none; outline: none; }
+.picker .rule { position: absolute; left: 17px; right: 17px; top: 86px; height: 1px; background: #2c2c31; }
+.shots { position: absolute; left: 17px; right: 10px; top: 96px; height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shots-label { margin: 0; font: 500 13px/1.2 var(--font-ui); color: #c8c8cf; }
 .track::before { content: ""; position: absolute; left: 0; right: 0; top: 13.5px; height: 5px; border-radius: 3px; background: #2c2c30; }
 .tick { position: absolute; top: 25px; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: #4a4a50; transition: background-color .2s; }
 .tick.passed { background: #6a6a74; }
@@ -123,13 +127,11 @@ body {
 .track.dragging .thumb { transform: scale(1.08); }
 .track:focus-visible .thumb { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-.note { position: absolute; left: 32px; right: 26px; top: 622px; margin: 0; font: 400 12px/17px var(--font-ui); color: #7b7b82; z-index: 2; }
-/* Photos per person: a compact two-way switch between the note and the Create button */
-.section { position: absolute; left: 18px; top: 672px; margin: 0; font: 300 15px/20px var(--font-display); font-variation-settings: "opsz" 36; color: #d6d6dc; z-index: 2; }
-.choices { position: absolute; left: 16px; right: 16px; top: 698px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border-radius: 12px; background: #1c1c1e; z-index: 2; }
+.note { position: absolute; left: 32px; right: 26px; bottom: 126px; margin: 0; font: 400 12px/17px var(--font-ui); color: #7b7b82; z-index: 2; }
+.choices { flex: none; width: 200px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; border-radius: 10px; background: #111113; }
 .choice {
-  height: 38px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: #a9a9b0;
-  font: 600 13.5px/1 var(--font-ui); letter-spacing: .01em; cursor: pointer;
+  height: 30px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #a9a9b0;
+  font: 600 12.5px/1 var(--font-ui); letter-spacing: .01em; cursor: pointer;
   transition: border-color .25s ease, transform .12s ease;
   position: relative; overflow: hidden;
 }
@@ -139,11 +141,11 @@ body {
 .choice[aria-checked="true"]::before { opacity: 1; }
 .choice:active { transform: scale(.97); }
 .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.dots { position: absolute; left: 0; right: 0; top: 758px; display: flex; justify-content: center; gap: 6px; z-index: 2; }
+.dots { position: absolute; left: 0; right: 0; bottom: 110px; display: flex; justify-content: center; gap: 6px; z-index: 2; }
 .dots i { width: 6px; height: 6px; border-radius: 3px; background: #5f5f66; }
 .dots i.on { width: 18px; background: #fff; }
 .next {
-  position: absolute; left: 16px; right: 16px; top: 780px; height: 60px; border-radius: 15px; z-index: 2;
+  position: absolute; left: 16px; right: 16px; bottom: 34px; height: 60px; border-radius: 15px; z-index: 2;
   border: 1px solid #5b5bff; background: linear-gradient(180deg, #2a2ff0, #1c1fc0); color: #fff;
   font: 600 16px/1 var(--font-ui); cursor: pointer;
 }
@@ -215,8 +217,7 @@ body {
         <div class="world" id="world">
           <div class="front" id="front"><div class="rig" id="rig"></div></div>
         </div>
-      </div>
-      <svg class="deco" id="deco" viewBox="0 0 402 452" aria-hidden="true">
+        <svg class="deco" id="deco" viewBox="0 0 402 452" aria-hidden="true">
         <defs>
           <!-- Grain on the drawn dog, close to the risograph texture of the original art -->
           <filter id="grain" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
@@ -229,21 +230,24 @@ body {
           <filter id="bulbGlow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.6"/></filter>
         </defs>
         <g id="garland"></g>
-      </svg>
+        </svg>
+      </div>
 
       <div class="picker">
-        <div class="picker-head" aria-hidden="true"><span class="count" id="countLabel">〜10<small>人</small></span><span class="price" id="priceLabel">無料</span></div>
+        <div class="picker-head" aria-hidden="true"><span id="countLabel">~ 10人</span><span id="priceLabel">+ ¥0</span></div>
         <div class="track" id="track" role="slider" tabindex="0" aria-label="Number of guests" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" aria-valuetext="10人まで、無料">
           <div class="thumb" id="thumb"></div>
         </div>
+        <div class="rule"></div>
+        <div class="shots">
+          <p class="shots-label" id="shotsLabel">Photos per person</p>
+          <div class="choices" role="radiogroup" aria-labelledby="shotsLabel">
+            <button class="choice" type="button" role="radio" aria-checked="true"><span>Up to 15</span></button>
+            <button class="choice" type="button" role="radio" aria-checked="false"><span>Unlimited</span></button>
+          </div>
+        </div>
       </div>
       <p class="note">You can upgrade at any time. Guests can join without downloading the app by scanning QR code or open a link.</p>
-
-      <h3 class="section">Photos per person</h3>
-      <div class="choices" role="radiogroup" aria-label="Photos per person">
-        <button class="choice" type="button" role="radio" aria-checked="true"><span>Up to 15 photos</span></button>
-        <button class="choice" type="button" role="radio" aria-checked="false"><span>Unlimited</span></button>
-      </div>
       <div class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div>
       <button class="next" type="button">Create</button>
       <div class="home" aria-hidden="true"></div>
@@ -263,6 +267,14 @@ body {
         <button class="btn" type="button" id="demo">自動デモ</button>
       </div>
       <label class="check"><input type="checkbox" id="idle" checked> 待機アニメーション（呼吸・まばたき）</label>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend>画面の高さ</legend>
+      <div class="switch" role="group" aria-label="画面の高さ">
+        <button type="button" id="h874" aria-pressed="true">標準 874pt</button>
+        <button type="button" id="h667" aria-pressed="false">SE 相当 667pt</button>
+      </div>
     </fieldset>
 
     <fieldset class="group">
@@ -316,27 +328,53 @@ body {
   const NS = 'http://www.w3.org/2000/svg';
 
   const TIERS = [
-    { label: '〜10人', num: '〜10', unit: '人', aria: '10人まで', price: 0, zoom: 1, note: '4人のみ' },
-    { label: '〜25人', num: '〜25', unit: '人', aria: '25人まで', price: 2500, zoom: 1, note: '+2人' },
-    { label: '〜50人', num: '〜50', unit: '人', aria: '50人まで', price: 5000, zoom: .88, note: '+5人・少し引く' },
-    { label: '〜100人', num: '〜100', unit: '人', aria: '100人まで', price: 10000, zoom: .76, note: '+12人・さらに引く' },
-    { label: '〜175人', num: '〜175', unit: '人', aria: '175人まで', price: 20000, zoom: .64, note: '+12人と犬・さらに引く' },
-    { label: '〜250人', num: '〜250', unit: '人', aria: '250人まで', price: 30000, zoom: .64, note: '頭上に電飾' },
-    { label: '250人以上', num: '250', unit: '人以上', aria: '250人以上', price: null, zoom: .64, note: '花火 / スポットライト' }
+    { label: '~ 10人', aria: '10人まで', price: 0, zoom: 1, note: '4人のみ' },
+    { label: '~ 25人', aria: '25人まで', price: 2500, zoom: 1, note: '+2人' },
+    { label: '~ 50人', aria: '50人まで', price: 5000, zoom: .88, note: '+5人・少し引く' },
+    { label: '~ 100人', aria: '100人まで', price: 10000, zoom: .76, note: '+12人・さらに引く' },
+    { label: '~ 175人', aria: '175人まで', price: 20000, zoom: .64, note: '+12人と犬・さらに引く' },
+    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .64, note: '頭上に電飾' },
+    { label: '250人以上', aria: '250人以上', price: null, zoom: .64, note: '花火 / スポットライト' }
   ];
   const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
   const rand = (a, b) => a + Math.random() * (b - a);
   const motionOn = () => !reduceMotion.matches;
 
-  // Fit the 402×874 phone into the viewport
-  const fit = () => {
-    const narrow = innerWidth < 820, phoneWidth = innerWidth <= 600;
-    const availH = narrow ? Infinity : innerHeight - 48;
-    const s = phoneWidth ? innerWidth / 402 : Math.min(1, availH / 874, (innerWidth - 32) / 402);
-    slot.style.setProperty('--s', s);
-    phone.style.setProperty('--s', s);
+  // Screen height: 874pt by default, 667pt to check an SE-sized screen. On a real phone the mock takes the
+  // device's own height, so what fits there is exactly what fits on that phone.
+  let screenH = 874;
+  const stageEl = document.getElementById('stage');
+  const layoutScreen = H => {
+    phone.style.setProperty('--h', H + 'px');
+    phone.classList.toggle('short', H < 760);
+    // Everything below the illustration is anchored to the bottom; the illustration takes what is left,
+    // centred, scaled down only when it has to.
+    const top = H < 760 ? 182 : 214;
+    const bottom = H - 166 - 140 - 8; // card top, less a gap
+    const f = Math.min(1, (bottom - top) / 230);
+    const y = top + Math.max(0, (bottom - top - 230 * f) / 2);
+    stageEl.style.top = y + 'px';
+    stageEl.style.transform = `scale(${f})`;
+    document.getElementById('glow').style.top = (y + 186 * f) + 'px';
   };
-  addEventListener('resize', fit); fit();
+  // Fit the phone into the viewport
+  const fit = () => {
+    // clientWidth/Height, not innerWidth/Height: on phones the latter grow with any overflow and feed back into the scale
+    const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+    const narrow = vw < 820, phoneWidth = vw <= 600;
+    const s = phoneWidth ? vw / 402 : 1;
+    const H = phoneWidth ? Math.round(vh / s) : screenH;
+    const k = phoneWidth ? s : Math.min(1, (narrow ? Infinity : vh - 48) / H, (vw - 32) / 402);
+    slot.style.setProperty('--s', k);
+    phone.style.setProperty('--s', k);
+    layoutScreen(H);
+  };
+  addEventListener('resize', fit);
+  [['h874', 874], ['h667', 667]].forEach(([id, H]) => document.getElementById(id).addEventListener('click', () => {
+    screenH = H;
+    ['h874', 'h667'].forEach(o => document.getElementById(o).setAttribute('aria-pressed', String(o === id)));
+    fit();
+  }));
 
   // ---------- Depth model ----------
   // World coordinates (stage-local before the camera zoom). The front four stand with their feet on FRONT_Y;
@@ -767,8 +805,8 @@ body {
   };
 
   // ---------- Labels ----------
-  const yen = n => Math.round(n).toLocaleString('ja-JP') + '円';
-  const priceText = n => n === null ? '要相談' : n === 0 ? '無料' : yen(n);
+  const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
+  const priceText = n => n === null ? '要相談' : '+ ' + yen(n);
   let priceAnim = 0;
   const updateLabels = (prev, next, animate) => {
     const t = TIERS[next];
@@ -776,7 +814,7 @@ body {
     track.setAttribute('aria-valuetext', `${t.aria}、${t.price === null ? '要相談' : t.price === 0 ? '無料' : yen(t.price)}`);
     const pop = el => animate && motionOn() && el.animate(
       [{ transform: 'translateY(4px)', opacity: .3 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: EXPO });
-    countLabel.innerHTML = `${t.num}<small>${t.unit}</small>`; pop(countLabel);
+    countLabel.textContent = t.label; pop(countLabel);
     cancelAnimationFrame(priceAnim);
     const from = prev >= 0 ? TIERS[prev].price : null;
     if (t.price === null || from === null || !animate || !motionOn()) {
@@ -788,7 +826,7 @@ body {
     const start = performance.now();
     const run = now => {
       const p = Math.min(1, (now - start) / 420);
-      priceLabel.textContent = p < 1 ? yen(from + (t.price - from) * (1 - Math.pow(1 - p, 3))) : priceText(t.price);
+      priceLabel.textContent = '+ ' + yen(from + (t.price - from) * (1 - Math.pow(1 - p, 3)));
       if (p < 1) priceAnim = requestAnimationFrame(run);
     };
     priceAnim = requestAnimationFrame(run);
@@ -843,7 +881,7 @@ body {
   // ---------- Rail ----------
   const tiersEl = document.getElementById('tiers');
   TIERS.forEach(t => tiersEl.insertAdjacentHTML('beforeend',
-    `<dt class="n">${t.label.replace('〜', '')}</dt><dd class="p">${t.price === null ? '相談' : t.price ? yen(t.price) : '無料'}</dd><dd class="g">${t.note}</dd>`));
+    `<dt class="n">${t.label.replace('~ ', '')}</dt><dd class="p">${t.price === null ? '相談' : t.price ? yen(t.price) : '無料'}</dd><dd class="g">${t.note}</dd>`));
 
   let demoTimers = [];
   const stopDemo = () => { demoTimers.forEach(clearTimeout); demoTimers = []; };
@@ -874,6 +912,7 @@ body {
   document.getElementById('replay').addEventListener('click', intro);
 
   addEventListener('resize', () => { setThumb(stopX(tier), false); layoutTicks(); });
+  fit();
   choose(0, false, false);
   requestAnimationFrame(step);
   if (document.readyState === 'complete') intro(); else addEventListener('load', intro);
