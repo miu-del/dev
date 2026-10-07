@@ -99,7 +99,6 @@ body {
   background: linear-gradient(var(--skin) 0 46%, #2a2420 46% 64%, var(--skin) 64%); }
 .guest { position: absolute; left: 0; top: 0; width: 60px; height: 200px; transform-origin: 50% 100%; will-change: transform, opacity; opacity: 0; }
 .guest svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.whistle { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 
 /* Decorations hung above the crowd, and the confetti canvas on top */
 .deco { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 1; overflow: visible; }
@@ -225,7 +224,6 @@ body {
 
       <div class="stage" id="stage" aria-hidden="true">
         <div class="world" id="world">
-          <svg class="whistle" id="whistle" viewBox="0 0 402 230" preserveAspectRatio="none"></svg>
           <div class="front" id="front"><div class="rig" id="rig"></div></div>
         </div>
       </div>
@@ -281,7 +279,6 @@ body {
         <button class="btn" type="button" id="replay">画面遷移を再生</button>
         <button class="btn" type="button" id="demo">自動デモ</button>
       </div>
-      <label class="check"><input type="checkbox" id="ring" checked> 笛のリング（足元の波紋）</label>
       <label class="check"><input type="checkbox" id="idle" checked> 待機アニメーション（呼吸・まばたき）</label>
     </fieldset>
 
@@ -319,7 +316,6 @@ body {
   const world = document.getElementById('world');
   const front = document.getElementById('front');
   const rig = document.getElementById('rig');
-  const whistle = document.getElementById('whistle');
   const track = document.getElementById('track');
   const thumb = document.getElementById('thumb');
   const countLabel = document.getElementById('countLabel');
@@ -564,25 +560,10 @@ body {
     requestAnimationFrame(step);
   };
 
-  // Whistle: a ripple on the ground at the front group's feet, like the Pikmin whistle circle
-  const ring = () => {
+  // When guests are called in, the front four look around and give a small lift
+  const callIn = () => {
     react = performance.now();
-    if (!document.getElementById('ring').checked || !motionOn()) return;
-    [0, 110].forEach(d => {
-      const e = document.createElementNS(NS, 'ellipse');
-      e.setAttribute('cx', CX); e.setAttribute('cy', FRONT_Y - 1);
-      e.setAttribute('fill', 'none'); e.setAttribute('stroke', '#faefdd'); e.setAttribute('stroke-width', 1.2);
-      whistle.appendChild(e);
-      const start = performance.now() + d;
-      const tick = now => {
-        const t = Math.max(0, (now - start) / 720);
-        const p = 1 - Math.pow(1 - Math.min(t, 1), 4);
-        e.setAttribute('rx', 30 + p * 200); e.setAttribute('ry', 4 + p * 22);
-        e.setAttribute('opacity', (t === 0 ? 0 : .55 * (1 - p)).toFixed(3));
-        if (t < 1) requestAnimationFrame(tick); else e.remove();
-      };
-      requestAnimationFrame(tick);
-    });
+    if (!motionOn()) return;
     front.animate([{ transform: 'none' }, { transform: 'translateY(-3px) scaleY(1.01)', offset: .35 }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });
   };
 
@@ -779,7 +760,7 @@ body {
     }
     zoomTo(TIERS[next].zoom);
     if (peopleTier > prevPeople) {
-      ring();
+      callIn();
       // New guests: nearest first, each tier staggered on its own so a jump of several tiers still reads as waves
       const joining = guests.filter(g => g.tier <= peopleTier && (g.cur.o < .99 || g.anim?.kind === 'out'));
       // One after another, spreading outwards from the centre
