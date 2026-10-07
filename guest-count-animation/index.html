@@ -46,6 +46,7 @@ body {
 
 /* ---------- Phone ---------- */
 .phone-slot { width: calc(402px * var(--s, 1)); height: calc(874px * var(--s, 1)); flex: none; }
+
 .phone {
   width: 402px; height: 874px;
   transform: scale(var(--s, 1)); transform-origin: top left;
@@ -173,7 +174,13 @@ body {
 .spec dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
 .spec dt { color: var(--ink-dim); }
 .spec dd { margin: 0; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
-</style>
+/* On a real phone the screen runs edge to edge: no bezel, and the device's own status bar replaces the mock one */
+@media (max-width: 600px) {
+  .layout { padding-block: 0 24px; gap: 24px; }
+  .phone-slot { margin-inline: -16px; }
+  .phone { border-radius: 0; box-shadow: none; }
+  .status, .home { display: none; }
+}</style>
 </head>
 <body>
 <!-- Shared grain filter: dark specks clipped to each figure, close to the risograph texture of the original art -->
@@ -334,9 +341,9 @@ body {
 
   // Fit the 402×874 phone into the viewport
   const fit = () => {
-    const narrow = innerWidth < 820;
+    const narrow = innerWidth < 820, phoneWidth = innerWidth <= 600;
     const availH = narrow ? Infinity : innerHeight - 48;
-    const s = Math.min(1, availH / 874, (innerWidth - 32) / 402);
+    const s = phoneWidth ? innerWidth / 402 : Math.min(1, availH / 874, (innerWidth - 32) / 402);
     slot.style.setProperty('--s', s);
     phone.style.setProperty('--s', s);
   };
