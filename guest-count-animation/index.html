@@ -75,7 +75,6 @@ body {
 /* Crowd stage: the camera (.world) scales around the front group's feet to "zoom out" */
 .stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; }
 .world { position: absolute; inset: 0; transform-origin: 201px 222px; }
-.mob { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 1; }
 .front { position: absolute; left: 116px; top: 16px; width: 170.5px; height: 204px; transform-origin: 50% 100%; }
 .rig { position: absolute; inset: 0; transform-origin: 50% 100%; }
 .part { position: absolute; inset: 0; background: url(assets/guests-front.png) 0 0 / 170.5px 204px no-repeat; }
@@ -187,18 +186,6 @@ body {
 
       <div class="stage" id="stage" aria-hidden="true">
         <div class="world" id="world">
-          <svg class="mob" id="mob" viewBox="0 0 402 230">
-            <defs>
-              <filter id="mobFar" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="2.4"/></filter>
-              <filter id="mobNear" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter>
-              <!-- Heads and shoulders only: the mass dissolves into the dark below -->
-              <linearGradient id="mobFade" gradientUnits="userSpaceOnUse" x1="0" y1="60" x2="0" y2="128">
-                <stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
-              </linearGradient>
-              <mask id="mobMask" maskUnits="userSpaceOnUse" x="-240" y="-60" width="900" height="320"><rect x="-240" y="-60" width="900" height="320" fill="url(#mobFade)"/></mask>
-            </defs>
-            <g id="mobRows" mask="url(#mobMask)"></g>
-          </svg>
           <div class="front" id="front"><div class="rig" id="rig"></div></div>
         </div>
       </div>
@@ -239,7 +226,7 @@ body {
   <aside class="rail">
     <div>
       <h1>Guest Count Gathering</h1>
-      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。100人まではゲストが足元からポンと1人ずつ現れ、後半はカメラが引いていきます。100人からはヘリコプターが飛んできて紙テープと紙吹雪をまき、250人で遠くに人ごみの影、250人以上では動物たちが集まってきます。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
+      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。100人まではゲストが足元からポンと1人ずつ現れ、後半はカメラが引いていきます。175人では動物たちが加わり、250人でヘリコプターが2機飛んできて、250人以上ではホバリングしながら紙テープと紙吹雪をまきます。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
     </div>
 
     <fieldset class="group">
@@ -268,12 +255,12 @@ body {
         <dt>呼吸</dt><dd>scaleY 1.007 / 4.2s（体は足元基点）</dd>
         <dt>首かしげ</dt><dd>±1.4–2.2° / 3.7–5.3s, 人ごとに位相ずらし</dd>
         <dt>まばたき</dt><dd>150ms, 2.4–5.5s 間隔, 20% で2回</dd>
-        <dt>ヘリの飛来</dt><dd>画面外からバネで減速して停止（k 2.6 / c 2.9）</dd>
+        <dt>動物</dt><dd>175人で4匹, 人の 72% の大きさ, 同じポップ</dd>
+        <dt>ヘリの飛来</dt><dd>250人で右外から2機, 2機目は少し遅れて</dd>
+        <dt>ヘリの動き</dt><dd>バネで目標を追う（k 2.6 / c 2.9）, 250人は旋回</dd>
         <dt>ヘリの傾き</dt><dd>速度 × .06°（最大 18°）+ ホバリングの揺れ</dd>
-        <dt>テープの量</dt><dd>1機あたり 7 → 10 → 16 → 18 枚/秒, 到着時に 26 枚</dd>
+        <dt>テープの量</dt><dd>250人以上で停止後, 1機あたり 5 枚/秒 + 到着時 12 枚</dd>
         <dt>紙テープ</dt><dd>全体の 40%, 長さ 16–28px でカール</dd>
-        <dt>人ごみの影</dt><dd>グレー2列・ぼかし, 下から浮上 + ゆっくり揺れる</dd>
-        <dt>動物</dt><dd>人と同じ足元からのポップ, 9匹（最前列中心）</dd>
       </dl>
     </div>
   </aside>
@@ -298,10 +285,10 @@ body {
     { label: '~ 10人', aria: '10人まで', price: 0, zoom: 1, note: '4人のみ' },
     { label: '~ 25人', aria: '25人まで', price: 2500, zoom: 1, note: '+2人' },
     { label: '~ 50人', aria: '50人まで', price: 5000, zoom: .88, note: '+5人・少し引く' },
-    { label: '~ 100人', aria: '100人まで', price: 10000, zoom: .76, note: '+12人・引く・ヘリ1機' },
-    { label: '~ 175人', aria: '175人まで', price: 20000, zoom: .72, note: 'ヘリ2機目' },
-    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .72, note: 'テープ増量＋人ごみの影' },
-    { label: '250人以上', aria: '250人以上', price: null, zoom: .72, note: '動物が出現' }
+    { label: '~ 100人', aria: '100人まで', price: 10000, zoom: .76, note: '+12人・さらに引く' },
+    { label: '~ 175人', aria: '175人まで', price: 20000, zoom: .72, note: '動物4匹' },
+    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .72, note: 'ヘリ2機が飛来' },
+    { label: '250人以上', aria: '250人以上', price: null, zoom: .72, note: 'ホバリングして紙テープ' }
   ];
   const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -332,11 +319,9 @@ body {
     [[-12, .9], [414, .9], [14, .7], [390, .7], [168, .54], [244, .54], [78, .58], [328, .58], [104, .5], [300, .48], [-44, .74], [446, .74]],
     [], []
   ];
-  // Beyond 250 nobody new is human: animals join the crowd, standing among the guests as if they were invited
-  const ANIMAL_SLOTS = [
-    [94, 1, 'penguin'], [310, 1, 'cat'], [26, .98, 'rabbit'], [378, .98, 'bear'],
-    [-40, .84, 'giraffe'], [446, .82, 'giraffe'], [-10, 1.02, 'cat'], [418, 1.02, 'penguin'], [206, .46, 'bear']
-  ];
+  // From 175 nobody new is human: four animals join the front row as if they were invited
+  const ANIMAL_TIER = 4, ANIMAL_SIZE = .72;
+  const ANIMAL_SLOTS = [[94, 1, 'penguin'], [310, 1, 'cat'], [30, .98, 'rabbit'], [376, .98, 'bear']];
 
   // ---------- Camera ----------
   let cam = { z: 1, from: 1, to: 1, start: 0, dur: 1 };
@@ -460,21 +445,7 @@ body {
        <circle cx="28" cy="32" r="5" fill="${A.blue}"/><circle cx="84" cy="32" r="5" fill="${A.blue}"/>
        <circle cx="56" cy="62" r="34" fill="${A.navy}"/><ellipse cx="51" cy="74" rx="13" ry="10" fill="${A.cream}"/>
        <ellipse cx="49" cy="68" rx="4.5" ry="3" fill="${A.eye}"/><path d="M49 72v4m-4 0q4 3 8 0" stroke="${A.eye}" stroke-width="1" fill="none"/>`,
-      eyes: [[40, 58], [62, 58]] },
-    giraffe: { w: 124, h: 400, pivot: [44, 270], eyesAt: [38, 44], amp: 1.3, body:
-      `<rect x="36" y="286" width="6" height="110" fill="${A.cream}"/><rect x="50" y="290" width="6" height="106" fill="${A.cream}"/>
-       <rect x="84" y="290" width="6" height="106" fill="${A.cream}"/><rect x="98" y="286" width="6" height="110" fill="${A.cream}"/>
-       <rect x="35" y="392" width="8" height="5" fill="${A.ink}"/><rect x="49" y="392" width="8" height="5" fill="${A.ink}"/><rect x="83" y="392" width="8" height="5" fill="${A.ink}"/><rect x="97" y="392" width="8" height="5" fill="${A.ink}"/>
-       <path d="M112 270c6 10 6 26 4 40" stroke="${A.navy}" stroke-width="2" fill="none"/><ellipse cx="116" cy="312" rx="3" ry="5" fill="${A.ink}"/>
-       <ellipse cx="72" cy="278" rx="44" ry="25" fill="${A.cream}"/>
-       <path d="M44 268l10-8 8 10-6 10zM70 262l12-4 6 10-8 8-10-4zM94 268l10 2 2 12-10 4zM58 284l12 2 2 10-12 2zM84 288l8 0 2 8-10 2z" fill="${A.blue}"/>`,
-      head: `<path d="M30 272 38 58h16l4 214z" fill="${A.cream}"/>
-       <path d="M54 62c4 60 6 140 6 206" stroke="${A.navy}" stroke-width="3" fill="none"/>
-       <path d="M38 90l10-4 4 10-8 6-6-2zM40 140l12-2 2 12-10 4-4-4zM36 190l12 0 4 12-12 4zM44 236l10 2 2 12-12 2z" fill="${A.blue}"/>
-       <path d="M44 34l-2-16M52 34l2-14" stroke="${A.navy}" stroke-width="2.4"/><circle cx="42" cy="17" r="2.6" fill="${A.navy}"/><circle cx="54" cy="19" r="2.6" fill="${A.navy}"/>
-       <path d="M18 42c-6 4-8 12-2 16l26 2c10 0 16-8 14-18-2-8-14-12-38 0z" fill="${A.cream}"/><ellipse cx="60" cy="40" rx="7" ry="3" fill="${A.cream}"/>
-       <circle cx="18" cy="52" r="1.2" fill="${A.eye}"/><circle cx="44" cy="50" r="3" fill="${A.cheek}" opacity=".7"/>`,
-      eyes: [[38, 44]] }
+      eyes: [[40, 58], [62, 58]] }
   };
   const animalEl = sp => {
     const el = document.createElement('div');
@@ -489,7 +460,7 @@ body {
 
   const guests = [];
   SLOTS.forEach((list, tier) => list.forEach(([x, s], i) => guests.push({ tier, x, s, seed: tier * 31 + i * 7 + 3 })));
-  ANIMAL_SLOTS.forEach(([x, s, kind], i) => guests.push({ tier: 6, x, s, seed: 400 + i * 11, kind }));
+  ANIMAL_SLOTS.forEach(([x, s, kind], i) => guests.push({ tier: ANIMAL_TIER, x, s, seed: 400 + i * 11, kind }));
   let humanIndex = 0;
   guests.forEach(g => {
     g.flip = g.x < CX ? -1 : 1; // the art faces left, so guests on the left are mirrored to face the centre
@@ -509,7 +480,7 @@ body {
 
   // k: grow factor for the pop-in (0 = not there, 1 = full size), scaled from the feet
   const place = (g, x, s, o, lift = 0, tilt = 0, sy = 1, k = 1) => {
-    const scale = SPRITE_PX * s * g.hf * k;
+    const scale = SPRITE_PX * s * g.hf * k * (g.kind ? ANIMAL_SIZE : 1);
     g.el.style.transform = `translate(${x - g.sp.w / 2}px, ${feetY(s) - g.sp.h - lift}px) rotate(${tilt}deg) scale(${scale * g.flip}, ${scale * sy})`;
     g.el.style.opacity = o;
     g.cur = { x, s, o, k };
@@ -595,45 +566,9 @@ body {
     front.animate([{ transform: 'none' }, { transform: 'translateY(-3px) scaleY(1.01)', offset: .35 }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });
   };
 
-  // ---------- Scene extras (100+): helicopters scattering paper tape, then the crowd shadow ----------
-  // Crowd shadow (250+): a grey mass of distant head-and-shoulder silhouettes behind the guests, edges blurred.
-  // Each row is split into four interleaved groups that sway on different phases, so the mass moves like a crowd.
-  const mobSvg = document.getElementById('mobRows');
-  const MOB_ROWS = [
-    { top: 38, s: .78, color: '#2b2c32', filter: 'mobFar',  step: 9.5, seed: 11, delay: 0 },
-    { top: 50, s: .96, color: '#393a41', filter: 'mobNear', step: 12,  seed: 29, delay: 140 }
-  ];
-  const mobRows = MOB_ROWS.map(row => {
-    const r = rng(row.seed);
-    const outer = document.createElementNS(NS, 'g');
-    outer.setAttribute('filter', `url(#${row.filter})`); outer.setAttribute('opacity', 0);
-    const paths = ['', '', '', ''];
-    let i = 0;
-    for (let x = -170; x < 572; x += row.step * (.75 + r() * .5), i++) {
-      const k = row.s * (.85 + r() * .3);
-      const top = row.top + (r() - .5) * 12;
-      const hx = x, hy = top + 6.5 * k;
-      let d = `M${hx - 5.4 * k} ${hy}a${5.4 * k} ${6.4 * k} 0 1 1 ${10.8 * k} 0a${5.4 * k} ${6.4 * k} 0 1 1 ${-10.8 * k} 0z`; // head
-      if (r() < .3) d += `M${hx + 1 * k} ${top - 1.5 * k}a${3 * k} ${3 * k} 0 1 1 ${6 * k} 0a${3 * k} ${3 * k} 0 1 1 ${-6 * k} 0z`; // bun
-      const sh = hy + 8 * k, w = (10 + r() * 4) * k;
-      d += `M${hx - w} 190V${sh + 6 * k}Q${hx - w} ${sh} ${hx - w + 6 * k} ${sh}H${hx + w - 6 * k}Q${hx + w} ${sh} ${hx + w} ${sh + 6 * k}V190z`; // shoulders
-      if (r() < .12) { // a raised arm, cheering
-        const side = r() < .5 ? -1 : 1, ax = hx + side * (w - 2.5 * k);
-        d += `M${ax - 2.4 * k} ${sh + 4 * k}V${top - 10 * k}a${2.4 * k} ${2.4 * k} 0 0 1 ${4.8 * k} 0V${sh + 4 * k}z`;
-      }
-      paths[i % 4] += d;
-    }
-    const groups = paths.map(d => {
-      const g = document.createElementNS(NS, 'path');
-      g.setAttribute('d', d); g.setAttribute('fill', row.color);
-      outer.appendChild(g);
-      return g;
-    });
-    mobSvg.appendChild(outer);
-    return { ...row, outer, groups, v: 0, target: 0, at: 0 };
-  });
-
-  // Helicopters, drawn facing left in the same flat style. The first arrives at 100, the second at 175.
+  // ---------- Scene extras (250+): helicopters scattering paper tape ----------
+  // Helicopters, drawn facing left in the same flat style. At 250 two fly in from the right and keep circling;
+  // beyond 250 they slow down, hover, and scatter paper tape and confetti.
   const helisLayer = document.getElementById('helis');
   const HELI_SVG = `
     <path d="M10 -2 46 -6v5L10 6z" fill="${A.navy}"/><path d="M42 -6l8-12h4l-4 16z" fill="${A.navy}"/>
@@ -646,17 +581,17 @@ body {
     <ellipse cx="0" cy="-23" rx="40" ry="2.6" fill="#d8d0bf" opacity=".16"/>
     <g class="rotor" transform="translate(0 -23)"><rect x="-40" y="-1" width="80" height="2" rx="1" fill="#d8d0bf"/></g>`;
   const HELIS = [
-    { from: 1, hover: [300, 242], level: 1, ph: 0 },
-    { from: -1, hover: [100, 232], level: 2, ph: 2.1 }
+    { hover: [296, 240], lag: 0, ph: 0,  cruise: [292, 72, 12] },  // cruise: centre x, x swing, y swing (each keeps to its own side)
+    { hover: [112, 230], lag: 1, ph: .9, cruise: [112, 72, 10] }
   ].map(h => {
     const g = document.createElementNS(NS, 'g');
     g.innerHTML = HELI_SVG;
     g.style.display = 'none';
     helisLayer.appendChild(g);
-    return { ...h, g, rotor: g.querySelector('.rotor'), tail: g.querySelector('.tail'), on: false, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, face: -h.from, arrived: false };
+    return { ...h, g, rotor: g.querySelector('.rotor'), tail: g.querySelector('.tail'), present: false, hovering: false, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, face: -1, arrived: false };
   });
-  // Paper tape and confetti per helicopter per second, by tier (100, 175, 250, 250+)
-  const SPRAY = [0, 0, 0, 7, 10, 16, 18];
+  const HELI_TIER = 5, SPRAY_TIER = 6;
+  const SPRAY_RATE = 5, ARRIVAL_DROP = 12; // pieces per helicopter per second, and the handful on arrival
 
   // Confetti canvas
   const fx = document.getElementById('fx').getContext('2d');
@@ -672,59 +607,50 @@ body {
     }
   };
 
-  let sceneTier = 0;
   const setDecor = next => {
-    sceneTier = next;
-    const lv = Math.max(0, next - 2); // 100 → 1, 175 → 2, 250 → 3, 250+ → 4
     HELIS.forEach(h => {
-      const on = lv >= h.level;
-      if (on === h.on) return;
-      h.on = on;
-      if (on) {
-        if (h.g.style.display === 'none') { // fly in from off-screen on its own side
-          h.x = h.from > 0 ? 470 : -70; h.y = h.hover[1] - 36; h.vx = -h.from * 160; h.vy = 0;
-          h.g.style.display = '';
-        }
-        h.tx = h.hover[0]; h.ty = h.hover[1]; h.arrived = false;
-      } else { // climb away the way it came
-        h.tx = h.from > 0 ? 540 : -140; h.ty = 160;
+      const present = next >= HELI_TIER;
+      if (present && !h.present) { // enter from off-screen right, the second one a beat later
+        h.x = 470 + h.lag * 130; h.y = h.hover[1] - 30; h.vx = -170; h.vy = 0;
+        h.g.style.display = '';
       }
-      if (!motionOn()) { h.x = h.tx; h.y = h.ty; h.vx = h.vy = 0; h.g.style.display = on ? '' : 'none'; }
+      h.present = present;
+      const hovering = next >= SPRAY_TIER;
+      if (hovering && !h.hovering) h.arrived = false;
+      h.hovering = hovering;
+      if (!motionOn()) {
+        [h.x, h.y] = present ? (hovering ? h.hover : [h.cruise[0], h.hover[1]]) : [540, 160];
+        h.vx = h.vy = 0; h.g.style.display = present ? '' : 'none';
+      }
     });
-    const mobOn = lv >= 3 ? 1 : 0;
-    mobRows.forEach(m => { if (m.target !== mobOn) { m.target = mobOn; m.at = performance.now() + (mobOn ? m.delay : 0); } });
   };
 
   const stepScene = (now, dt, t) => {
     const on = motionOn();
-    // Helicopters: a soft spring towards the hover point, nose dipping into the direction of travel
+    // Helicopters: a soft spring towards a target, nose dipping into the direction of travel.
+    // The target circles lazily while cruising, sits still while hovering, and leaves off the right edge.
     HELIS.forEach(h => {
       if (h.g.style.display === 'none') return;
+      if (!h.present) { h.tx = 540; h.ty = 160; }
+      else if (h.hovering) { h.tx = h.hover[0]; h.ty = h.hover[1]; }
+      else { const [cx, ax, ay] = h.cruise; h.tx = cx + ax * Math.sin(t * .42 + h.ph); h.ty = h.hover[1] + ay * Math.sin(t * .84 + h.ph); }
       if (on) {
         const k = 2.6, c = 2.9;
         h.vx += (k * (h.tx - h.x) - c * h.vx) * dt; h.vy += (k * (h.ty - h.y) - c * h.vy) * dt;
         h.x += h.vx * dt; h.y += h.vy * dt;
       }
       if (Math.abs(h.vx) > 25) h.face = Math.sign(h.vx);
-      else if (h.on) h.face = h.from > 0 ? -1 : 1; // hovering: look towards the middle
+      else if (h.hovering) h.face = h.hover[0] < CX ? 1 : -1; // hovering: look towards the middle
       const hoverX = on ? Math.sin(t * .8 + h.ph) * 7 : 0, hoverY = on ? Math.sin(t * 1.7 + h.ph) * 3 : 0;
       const tilt = Math.max(-18, Math.min(18, h.vx * .06)) + (on ? Math.sin(t * 1.3 + h.ph) * 2 : 0);
       const px = h.x + hoverX, py = h.y + hoverY;
       h.g.setAttribute('transform', `translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${tilt.toFixed(2)}) scale(${-h.face} 1)`);
       h.rotor.setAttribute('transform', `translate(0 -23) scale(${on ? Math.cos(t * 42 + h.ph).toFixed(3) : 1} 1)`);
       h.tail.setAttribute('transform', `translate(50 -10) rotate(${on ? (t * 1400) % 360 : 0})`);
-      const near = h.on && Math.hypot(h.tx - h.x, h.ty - h.y) < 40;
-      if (near && !h.arrived) { h.arrived = true; if (on) drop({ ...h, x: px, y: py }, 26, 110); } // a handful on arrival
-      if (near && on && Math.random() < dt * SPRAY[sceneTier]) drop({ ...h, x: px, y: py }, 1, 75);
-      if (!h.on && (h.x > 520 || h.x < -120)) h.g.style.display = 'none';
-    });
-    // Crowd shadow: rises up out of the dark and fades in, then sways gently
-    mobRows.forEach((m, ri) => {
-      if (now >= m.at) m.v += (m.target - m.v) * (1 - Math.exp(-dt * (m.target ? 4 : 6)));
-      if (!on) m.v = m.target;
-      m.outer.setAttribute('opacity', m.v.toFixed(3));
-      m.outer.setAttribute('transform', `translate(0 ${((1 - m.v) * 26).toFixed(2)})`);
-      if (m.v > .01) m.groups.forEach((g, gi) => g.setAttribute('transform', `translate(0 ${on ? (Math.sin(t * 1.6 + gi * 1.7 + ri) * 1.4).toFixed(2) : 0})`));
+      const near = h.present && h.hovering && Math.hypot(h.tx - h.x, h.ty - h.y) < 30;
+      if (near && !h.arrived) { h.arrived = true; if (on) drop({ ...h, x: px, y: py }, ARRIVAL_DROP, 110); } // a handful on arrival
+      if (near && on && Math.random() < dt * SPRAY_RATE) drop({ ...h, x: px, y: py }, 1, 75);
+      if (!h.present && h.x > 520) h.g.style.display = 'none';
     });
     // Paper tape and confetti drifting down
     fx.clearRect(0, 0, 402, 452);
