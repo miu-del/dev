@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guest Count Gathering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: phone mock on the left, a narrow control rail on the right; stacks below the phone on narrow screens.
+   Single dark look on purpose: the screen being prototyped is dark, so the page around it stays dark too. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b12;
+  --rail: #14141d;
+  --rail-line: #26263a;
+  --ink: #ececf3;
+  --ink-dim: #9a9ab0;
+  --accent: #6d6dff;
+  --cream: #faefdd;
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Zen Kaku Gothic New", sans-serif;
+  --font-jp: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-jp);
+  font-size: 14px;
+}
+.layout {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding-inline: 16px;
+  padding-block: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+}
+
+/* ---------- Phone ---------- */
+.phone-slot { width: calc(402px * var(--s, 1)); height: calc(874px * var(--s, 1)); flex: none; }
+.phone {
+  width: 402px; height: 874px;
+  transform: scale(var(--s, 1)); transform-origin: top left;
+  border-radius: 56px;
+  background: #000;
+  box-shadow: 0 0 0 10px #1b1b22, 0 0 0 11px #33333d, 0 40px 80px -20px rgba(0,0,0,.8);
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+  isolation: isolate;
+  user-select: none;
+}
+.status { position: absolute; inset: 0 0 auto 0; height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 6px 34px 0 52px; box-sizing: border-box; font: 600 17px/1 var(--font-ui); letter-spacing: -.01em; }
+.status-icons { display: flex; gap: 6px; align-items: center; }
+.back { position: absolute; left: 22px; top: 56px; width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; color: #fff; cursor: pointer; border-radius: 20px; }
+.back:focus-visible { outline: 2px solid var(--accent); }
+.title {
+  position: absolute; left: 0; right: 0; top: 104px; margin: 0;
+  text-align: center; font: 400 21px/31px var(--font-display); letter-spacing: -.015em;
+  font-variation-settings: "opsz" 72; z-index: 2;
+}
+.subtitle { position: absolute; left: 40px; right: 40px; top: 175px; margin: 0; text-align: center; font: 400 12.5px/17px var(--font-ui); color: #c8c8cf; letter-spacing: .01em; z-index: 2; }
+
+/* Crowd stage: the original four stay put; extra guests are absolutely positioned and driven by JS */
+.stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; }
+.front {
+  position: absolute; left: 116px; top: 16px; width: 170.5px; height: 204px;
+  background: url(assets/guests-front.png) center / 100% 100% no-repeat;
+  transform-origin: 50% 100%;
+}
+.guest { position: absolute; left: 0; top: 0; width: 60px; height: 200px; transform-origin: 50% 100%; will-change: transform, opacity; opacity: 0; }
+.guest svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.whistle { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+/* Slider card */
+.picker { position: absolute; left: 16px; right: 16px; top: 453px; height: 86px; border-radius: 16px; background: #1c1c1e; z-index: 2; }
+.picker-head { position: absolute; left: 17px; right: 17px; top: 14px; display: flex; justify-content: space-between; font: 600 14px/18px var(--font-ui); font-variant-numeric: tabular-nums; }
+.picker-head span { display: inline-block; }
+.track { position: absolute; left: 14px; right: 16px; top: 42px; height: 32px; cursor: pointer; touch-action: none; outline: none; }
+.track::before { content: ""; position: absolute; left: 0; right: 0; top: 13.5px; height: 5px; border-radius: 3px; background: #2c2c30; }
+.tick { position: absolute; top: 25px; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: #4a4a50; transition: background-color .2s; }
+.tick.passed { background: #6a6a74; }
+.thumb {
+  position: absolute; top: 4px; width: 38px; height: 24px; margin-left: -19px; border-radius: 12px; background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.45); transition: transform .15s ease;
+}
+.track.dragging .thumb { transform: scale(1.08); }
+.track:focus-visible .thumb { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.note { position: absolute; left: 32px; right: 26px; top: 554px; margin: 0; font: 400 12px/17px var(--font-ui); color: #7b7b82; z-index: 2; }
+.section { position: absolute; left: 17px; top: 626px; margin: 0; font: 300 22px/30px var(--font-display); font-variation-settings: "opsz" 48; letter-spacing: -.01em; z-index: 2; }
+.choices { position: absolute; left: 16px; right: 14px; top: 667px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 2; }
+.choice {
+  height: 54px; border-radius: 9px; border: 1px solid #3a3a40; background: #1c1c1f; color: #fff;
+  font: 600 14.5px/1 var(--font-ui); letter-spacing: .01em; cursor: pointer;
+  transition: border-color .25s ease, transform .12s ease;
+  position: relative; overflow: hidden;
+}
+.choice::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #121566, #070838); opacity: 0; transition: opacity .25s ease; }
+.choice span { position: relative; }
+.choice[aria-checked="true"] { border-color: #c9caff; }
+.choice[aria-checked="true"]::before { opacity: 1; }
+.choice:active { transform: scale(.97); }
+.choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.dots { position: absolute; left: 0; right: 0; top: 758px; display: flex; justify-content: center; gap: 6px; z-index: 2; }
+.dots i { width: 6px; height: 6px; border-radius: 3px; background: #5f5f66; }
+.dots i.on { width: 18px; background: #fff; }
+.next {
+  position: absolute; left: 16px; right: 16px; top: 780px; height: 60px; border-radius: 15px; z-index: 2;
+  border: 1px solid #5b5bff; background: linear-gradient(180deg, #2a2ff0, #1c1fc0); color: #fff;
+  font: 600 16px/1 var(--font-ui); cursor: pointer;
+}
+.next:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.home { position: absolute; left: 50%; bottom: 8px; width: 144px; height: 5px; margin-left: -72px; border-radius: 3px; background: #fff; z-index: 21; }
+
+/* ---------- Control rail ---------- */
+.rail {
+  width: 340px; max-width: 100%; box-sizing: border-box;
+  background: var(--rail); border: 1px solid var(--rail-line); border-radius: 14px;
+  padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 22px;
+}
+.rail h1 { margin: 0; font: 500 22px/1.2 var(--font-display); letter-spacing: -.01em; text-wrap: balance; }
+.rail .lead { margin: 6px 0 0; color: var(--ink-dim); line-height: 1.6; }
+.group { display: flex; flex-direction: column; gap: 8px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.group legend, .group .label { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ink-dim); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.btn {
+  appearance: none; border: 1px solid var(--accent); background: transparent; color: var(--ink);
+  border-radius: 9px; padding: 10px 14px; font: 500 14px/1 var(--font-jp); cursor: pointer;
+}
+.btn:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink); }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.tiers { margin: 0; display: grid; grid-template-columns: auto auto 1fr; gap: 6px 14px; font-size: 13px; }
+.tiers dt, .tiers dd { margin: 0; }
+.tiers .n { color: var(--ink); font-weight: 500; }
+.tiers .p { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.tiers .g { color: var(--ink-dim); font-family: var(--font-mono); font-size: 12px; text-align: right; }
+.spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
+.spec dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
+.spec dt { color: var(--ink-dim); }
+.spec dd { margin: 0; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
+</style>
+</head>
+<body>
+<!-- Shared grain filter: dark specks clipped to each figure, close to the risograph texture of the original art -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="grain" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="7" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3.2 0 0 0 1.75" result="speck"/>
+      <feComposite in="speck" in2="SourceGraphic" operator="in" result="clipped"/>
+      <feComponentTransfer in="clipped" result="soft"><feFuncA type="linear" slope=".5"/></feComponentTransfer>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="soft"/></feMerge>
+    </filter>
+  </defs>
+</svg>
+
+<div class="layout">
+  <div class="phone-slot" id="phoneSlot">
+    <div class="phone" id="phone">
+      <div class="status" aria-hidden="true">
+        <span>9:41</span>
+        <span class="status-icons">
+          <svg width="19" height="12" viewBox="0 0 19 12" fill="#fff"><rect x="0" y="8" width="3.2" height="4" rx="1"/><rect x="5" y="5.5" width="3.2" height="6.5" rx="1"/><rect x="10" y="3" width="3.2" height="9" rx="1"/><rect x="15" y="0" width="3.2" height="12" rx="1"/></svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="#fff"><path d="M8.5 2.4c2.3 0 4.4.9 6 2.4l1.2-1.2C13.8 1.7 11.3.6 8.5.6S3.2 1.7 1.3 3.6l1.2 1.2c1.6-1.5 3.7-2.4 6-2.4zm0 3.4c1.4 0 2.6.5 3.6 1.4l1.2-1.2C12 4.8 10.3 4.1 8.5 4.1S5 4.8 3.7 6l1.2 1.2c1-.9 2.2-1.4 3.6-1.4zm0 3.4c-.6 0-1.2.2-1.6.6l1.6 1.6 1.6-1.6c-.4-.4-1-.6-1.6-.6z"/></svg>
+          <svg width="27" height="13" viewBox="0 0 27 13" fill="none"><rect x=".5" y=".5" width="23" height="12" rx="3.5" stroke="#fff" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2" fill="#fff"/><path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2z" fill="#fff" opacity=".4"/></svg>
+        </span>
+      </div>
+      <button class="back" type="button" aria-label="Back">
+        <svg width="12" height="20" viewBox="0 0 12 20" fill="none"><path d="M10 2 2 10l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2 class="title">How many guests for<br>your album?</h2>
+      <p class="subtitle">Make sure all guests have a chance to take the most amazing photo from your event.</p>
+
+      <div class="stage" id="stage" aria-hidden="true">
+        <svg class="whistle" id="whistle" viewBox="0 0 402 230" preserveAspectRatio="none"></svg>
+        <div class="front" id="front"></div>
+      </div>
+
+      <div class="picker">
+        <div class="picker-head" aria-hidden="true"><span id="countLabel">~ 10人</span><span id="priceLabel">+ ¥0</span></div>
+        <div class="track" id="track" role="slider" tabindex="0" aria-label="Number of guests" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" aria-valuetext="10人まで、無料">
+          <div class="thumb" id="thumb"></div>
+        </div>
+      </div>
+      <p class="note">You can upgrade at any time. Guests can join without downloading the app by scanning QR code or open a link.</p>
+
+      <h3 class="section">Photos per person</h3>
+      <div class="choices" role="radiogroup" aria-label="Photos per person">
+        <button class="choice" type="button" role="radio" aria-checked="true"><span>Up to 15 photos</span></button>
+        <button class="choice" type="button" role="radio" aria-checked="false"><span>Unlimited</span></button>
+      </div>
+      <div class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div>
+      <button class="next" type="button">Create</button>
+      <div class="home" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <aside class="rail">
+    <div>
+      <h1>Guest Count Gathering</h1>
+      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。スライダーで人数を上げると、ピクミンの笛のように奥や画面の端からゲストが走って集まってきます。下げると走り去ります。</p>
+    </div>
+
+    <fieldset class="group">
+      <legend>プレビュー</legend>
+      <div class="row">
+        <button class="btn" type="button" id="replay">画面遷移を再生</button>
+        <button class="btn" type="button" id="demo">自動デモ</button>
+      </div>
+      <label class="check"><input type="checkbox" id="ring" checked> 笛のリング（足元の波紋）</label>
+    </fieldset>
+
+    <div class="group">
+      <span class="label">段階と追加される人数</span>
+      <dl class="tiers" id="tiers"></dl>
+    </div>
+
+    <div class="spec">
+      <div class="group"><span class="label">タイミング（実装メモ）</span></div>
+      <dl>
+        <dt>到着の時差</dt><dd>1人あたり 70ms + ランダム 0–90ms</dd>
+        <dt>走る時間</dt><dd>距離に比例 650–1250ms, ease-out</dd>
+        <dt>走りの上下動</dt><dd>3.4Hz, 振幅 7px × 奥行き</dd>
+        <dt>前傾</dt><dd>進行方向へ 7° ± 揺れ 4°</dd>
+        <dt>到着時</dt><dd>小ジャンプ 9px + 着地のつぶれ / 380ms</dd>
+        <dt>退場</dt><dd>近い方の端へ 520–760ms, ease-in</dd>
+        <dt>笛のリング</dt><dd>720ms expo-out（増えるときのみ）</dd>
+        <dt>奥行き表現</dt><dd>遠いほど小さく・暗く（明度 1 → .55）</dd>
+      </dl>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const phone = document.getElementById('phone');
+  const slot = document.getElementById('phoneSlot');
+  const stage = document.getElementById('stage');
+  const front = document.getElementById('front');
+  const whistle = document.getElementById('whistle');
+  const track = document.getElementById('track');
+  const thumb = document.getElementById('thumb');
+  const countLabel = document.getElementById('countLabel');
+  const priceLabel = document.getElementById('priceLabel');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+  const TIERS = [
+    { label: '~ 10人', aria: '10人まで', price: 0 },
+    { label: '~ 25人', aria: '25人まで', price: 2500 },
+    { label: '~ 50人', aria: '50人まで', price: 5000 },
+    { label: '~ 100人', aria: '100人まで', price: 10000 },
+    { label: '~ 175人', aria: '175人まで', price: 20000 },
+    { label: '~ 250人', aria: '250人まで', price: 30000 },
+    { label: '250人以上', aria: '250人以上', price: null }
+  ];
+  const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
+
+  // Fit the 402×874 phone into the viewport
+  const fit = () => {
+    const narrow = innerWidth < 820;
+    const availH = narrow ? Infinity : innerHeight - 48;
+    const s = Math.min(1, availH / 874, (innerWidth - 32) / 402);
+    slot.style.setProperty('--s', s);
+    phone.style.setProperty('--s', s);
+  };
+  addEventListener('resize', fit); fit();
+
+  // ---------- Depth model ----------
+  // Stage-local coordinates. The front four stand with their feet on FRONT_Y; guests further back
+  // stand higher (towards HORIZON), smaller and dimmer.
+  const FRONT_Y = 220, HORIZON = 76, BASE_H = 190;
+  const feetY = s => HORIZON + (FRONT_Y - HORIZON) * s;
+  const fog = s => 0.55 + 0.45 * Math.min(1, (s - 0.25) / 0.65);
+
+  // Slots: [x centre, depth scale]. Each tier adds its own list on top of the previous ones.
+  const SLOTS = [
+    [],
+    [[92, .9], [312, .9]],
+    [[50, .78], [354, .78], [207, .66]],
+    [[130, .62], [278, .62], [16, .68], [388, .68]],
+    [[168, .54], [244, .54], [76, .6], [330, .6], [104, .5]],
+    [[300, .48], [38, .52], [366, .52], [188, .45], [224, .45], [142, .44]],
+    [[88, .41], [264, .4], [320, .4], [12, .44], [390, .44], [160, .38], [236, .38], [58, .38]]
+  ];
+  // Beyond 250: a far crowd fills the horizon
+  const FAR = Array.from({ length: 34 }, (_, i) => {
+    const t = (i + .5) / 34;
+    return [8 + t * 386 + Math.sin(i * 7.3) * 5, .27 + ((i * 37) % 9) / 100];
+  });
+
+  // ---------- Figure drawing ----------
+  const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const C = { cream: '#f7ecd8', blue: '#0f56a2', blue2: '#1d5d93', navy: '#0b2c55', black: '#15161c', shoe: '#0a0a0c' };
+  const pick = (r, list) => list[Math.floor(r() * list.length)];
+
+  // Hair is lifted off pure black (and given light strands, as in the original art) so it reads against the black screen
+  const HAIR_FILL = '#1a1c24', STRAND = 'stroke="#6b6e7a" stroke-width=".6" fill="none" stroke-linecap="round"';
+  const HAIR = {
+    bob:   `<path d="M17.5 38c-1-15 6-23 12.5-23s13.5 8 12.5 23l1 16h-7.5l-.5-22c-3-4-8-5-11-1l-.5 23H17z" fill="${HAIR_FILL}"/><path d="M20 50V34c1-9 5-15 10-16M40 50V34c-1-9-5-15-10-16M23 50V31M37 50V31" ${STRAND}/>`,
+    bun:   `<circle cx="36" cy="18" r="5.5" fill="${HAIR_FILL}"/><path d="M33 16c2-3 6-3 7 1" ${STRAND}/><path d="M19.4 33c.4-11 6-15 10.6-15s10.4 4 10.6 13c-4-4-10-6-14-5-3 1-5.5 3.5-7.2 7z" fill="${HAIR_FILL}"/><path d="M22 28c3-6 9-8 15-6" ${STRAND}/>`,
+    short: `<path d="M19.3 33c-.6-12 4.8-16.5 10.7-16.5 6 0 11 4 10.7 13.5-2.5-3.5-7-6.4-12-5.5-3.6.6-7 3.6-9.4 8.5z" fill="${HAIR_FILL}"/><path d="M22 27c2-5 7-8 13-7" ${STRAND}/>`,
+    quiff: `<path d="M19.6 33c-.3-11 4-15.5 9.5-16l1.5-4 2 3.2 2.6-2.4.4 3.6c3.8 2 5 6 4.7 11.6-3-4-7.4-6-12-5-3.6.7-6.4 4-8.7 9z" fill="${HAIR_FILL}"/><path d="M23 25c2-4 6-6 11-5" ${STRAND}/>`,
+    long:  `<path d="M17 40c-1.5-17 6-25 13-25s14.5 8 13 25l2 22H37l-1-30c-3-4-9-4-12 0l-1 30h-8z" fill="${HAIR_FILL}"/><path d="M19 60V38c0-10 5-19 11-21M41 60V38c0-10-5-19-11-21M22 60V32M25 60V27M38 60V32M35 60V27" ${STRAND}/>`,
+    none:  ''
+  };
+
+  const body = (type, r) => {
+    const tone = pick(r, [C.blue, C.blue, C.blue2, C.navy, C.black]);
+    const shade = tone === C.black ? '#22242c' : C.navy;
+    const legs = (color, w = 4) => `<rect x="${26 - w}" y="140" width="${w}" height="56" fill="${color}"/><rect x="34" y="140" width="${w}" height="56" fill="${color}"/>`;
+    const shoes = '<ellipse cx="23" cy="197" rx="4.5" ry="2.2" fill="#0a0a0c"/><ellipse cx="37" cy="197" rx="4.5" ry="2.2" fill="#0a0a0c"/>';
+    const arms = c => `<path d="M14 70c-5 16-5 38-2 54l5-1c-1-16 0-34 3-50z" fill="${c}"/><path d="M46 70c5 16 5 38 2 54l-5-1c1-16 0-34-3-50z" fill="${c}"/>`;
+    switch (type) {
+      case 'dress': return legs(C.cream, 3) + shoes +
+        `<path d="M21 63c-6 2-7.5 12-7.5 28L8 162h44l-5.5-71c0-16-1.5-26-7.5-28z" fill="${tone}"/>` + arms(shade);
+      case 'sweater': return shoes +
+        `<path d="M15 108h30l1 88H34.5L30 132l-4.5 64H14z" fill="${pick(r, [C.blue, C.blue2, C.navy])}"/>` +
+        '<path d="M20 63c-7 2-8.5 12-8 48h36c.5-36-1-46-8-48z" fill="#f7ecd8"/>' + arms('#e9dcc4');
+      case 'suit': return legs(C.black, 7) + shoes +
+        `<path d="M20 63c-7 2-9 12-9 28l-1 58h40l-1-58c0-16-2-26-9-28l-10 30z" fill="${tone}"/>` +
+        '<path d="M27 64h6v50h-6z" fill="#f7ecd8"/><path d="M27 70h6M27 76h6M27 82h6M27 88h6M27 94h6M27 100h6" stroke="#06070a" stroke-width="1"/>' + arms(shade);
+      default: return legs(pick(r, [C.black, C.navy]), 6) + shoes + // coat
+        `<path d="M20 63c-7 2-9 12-9 28l-2 62h42l-2-62c0-16-2-26-9-28z" fill="${tone}"/>` +
+        `<path d="M24 64l6 22 6-22" fill="none" stroke="${shade}" stroke-width="1.6"/>` + arms(shade);
+    }
+  };
+
+  const personSVG = seed => {
+    const r = rng(seed);
+    const type = pick(r, ['coat', 'dress', 'sweater', 'suit', 'coat', 'dress']);
+    const hair = type === 'suit' ? pick(r, ['short', 'quiff', 'none']) : pick(r, ['bob', 'bun', 'short', 'quiff', 'long']);
+    const cheek = r() < .35 ? '<circle cx="35.5" cy="38" r="2.4" fill="#9fb3d6" opacity=".7"/>' : '';
+    return `<svg viewBox="0 0 60 200"><g filter="url(#grain)">${body(type, r)}</g>` +
+      '<rect x="28" y="40" width="4" height="25" fill="#f7ecd8"/>' +
+      '<ellipse cx="30" cy="33" rx="10.5" ry="12.5" fill="#f7ecd8"/>' + HAIR[hair] + cheek +
+      '<circle cx="26.5" cy="34" r=".95" fill="#06070a"/><circle cx="33.5" cy="34" r=".95" fill="#06070a"/></svg>';
+  };
+  // Far crowd: a simpler silhouette, it is only a few pixels tall
+  const farSVG = seed => {
+    const r = rng(seed);
+    const tone = pick(r, [C.blue, C.navy, C.blue2, C.black]);
+    return `<svg viewBox="0 0 60 200"><path d="M20 63c-7 2-9 12-9 28l-3 105h44l-3-105c0-16-2-26-9-28z" fill="${tone}"/>` +
+      '<ellipse cx="30" cy="34" rx="11" ry="13" fill="#f7ecd8"/>' + (r() < .6 ? `<path d="M19 33c0-12 5-16 11-16s11 4 11 14c-4-4-8-6-12-5-4 1-7 3-10 7z" fill="${HAIR_FILL}"/>` : '') + '</svg>';
+  };
+
+  // ---------- Guests ----------
+  const guests = [];
+  SLOTS.forEach((list, tier) => list.forEach(([x, s], i) => guests.push({ tier, x, s, seed: tier * 31 + i * 7 + 3, far: false })));
+  FAR.forEach(([x, s], i) => guests.push({ tier: 6, x, s, seed: 500 + i, far: true }));
+  guests.forEach((g, i) => {
+    g.el = document.createElement('div');
+    g.el.className = 'guest';
+    g.el.innerHTML = g.far ? farSVG(g.seed) : personSVG(g.seed);
+    g.hf = g.far ? 1 : .9 + rng(g.seed * 13)() * .16; // height variety
+    g.el.style.zIndex = Math.round(feetY(g.s) * 10);
+    g.el.style.filter = `brightness(${fog(g.s).toFixed(2)})`;
+    stage.appendChild(g.el);
+    g.cur = { x: g.x, s: g.s, o: 0 }; // current pose (start point for interrupted moves)
+    g.anim = null;
+  });
+  front.style.zIndex = FRONT_Y * 10 + 5;
+
+  const place = (g, x, s, o, lift = 0, tilt = 0, sy = 1) => {
+    const h = BASE_H * s * g.hf;
+    const scale = h / 200;
+    g.el.style.transform = `translate(${x - 30}px, ${feetY(s) - 200 - lift}px) rotate(${tilt}deg) scale(${scale}, ${scale * sy})`;
+    g.el.style.opacity = o;
+    g.cur = { x, s, o };
+  };
+
+  const easeOut = t => 1 - Math.pow(1 - t, 2.2);
+  const easeIn = t => t * t;
+  const RUN_HZ = 3.4, BOB = 7, HOP = 380;
+
+  // Where a guest runs in from: the near side edge for the front rows, the far horizon for the back
+  const entryPoint = g => {
+    if (g.far || g.s < .47) {
+      const side = g.x < 201 ? -1 : 1;
+      return { x: g.x + side * (60 + Math.random() * 70), s: g.s * .55 };
+    }
+    return { x: g.x < 201 ? -40 - Math.random() * 30 : 442 + Math.random() * 30, s: g.s * (.82 + Math.random() * .1) };
+  };
+
+  const arrive = (g, delay) => {
+    const from = g.cur.o > .05 ? { ...g.cur } : entryPoint(g);
+    const dist = Math.hypot(g.x - from.x, (g.s - from.s) * 300);
+    g.anim = { kind: 'in', start: performance.now() + delay, dur: Math.min(1250, 650 + dist * 2.2), from, o0: g.cur.o, phase: Math.random() * Math.PI };
+  };
+  const leave = (g, delay) => {
+    const side = g.x < 201 ? -1 : 1;
+    const to = g.far || g.s < .47 ? { x: g.x + side * 90, s: g.s * .55 } : { x: side < 0 ? -50 : 452, s: g.cur.s * .9 };
+    g.anim = { kind: 'out', start: performance.now() + delay, dur: 520 + Math.random() * 240, from: { ...g.cur }, to, o0: g.cur.o, phase: Math.random() * Math.PI };
+  };
+
+  const step = now => {
+    for (const g of guests) {
+      const a = g.anim;
+      if (!a) continue;
+      const t = (now - a.start) / a.dur;
+      if (t < 0) continue;
+      const dir = Math.sign((a.kind === 'in' ? g.x : a.to.x) - a.from.x) || 1;
+      const bob = el => Math.abs(Math.sin(a.phase + el / 1000 * Math.PI * RUN_HZ));
+      if (a.kind === 'in') {
+        if (t < 1) {
+          const p = easeOut(t), el = now - a.start, b = bob(el);
+          const x = a.from.x + (g.x - a.from.x) * p, s = a.from.s + (g.s - a.from.s) * p;
+          const settle = 1 - Math.pow(t, 3); // the run calms down as they reach the slot
+          place(g, x, s, Math.min(1, a.o0 + t * 4), b * BOB * s * settle, (dir * 7 + Math.sin(el / 90) * 4) * settle, 1 - (1 - b) * .04 * settle);
+        } else {
+          // Arrival hop: a small jump, then a squash on landing
+          const h = Math.min(1, (now - a.start - a.dur) / HOP);
+          const jump = Math.sin(Math.min(1, h / .6) * Math.PI) * 9 * g.s;
+          const squash = h > .6 ? 1 - Math.sin((h - .6) / .4 * Math.PI) * .06 : 1 + Math.sin(h / .6 * Math.PI) * .03;
+          place(g, g.x, g.s, 1, jump, 0, squash);
+          if (h >= 1) { place(g, g.x, g.s, 1); g.anim = null; }
+        }
+      } else {
+        const p = easeIn(Math.min(1, t)), el = now - a.start;
+        const x = a.from.x + (a.to.x - a.from.x) * p, s = a.from.s + (a.to.s - a.from.s) * p;
+        const o = t < .55 ? a.o0 : a.o0 * Math.max(0, 1 - (t - .55) / .45);
+        place(g, x, s, o, bob(el) * BOB * s, dir * 8 + Math.sin(el / 90) * 4);
+        if (t >= 1) { place(g, g.x, g.s, 0); g.anim = null; }
+      }
+    }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+
+  // Whistle: a ripple on the ground at the front group's feet, like the Pikmin whistle circle
+  const ring = () => {
+    if (!document.getElementById('ring').checked || reduceMotion.matches) return;
+    const NS = 'http://www.w3.org/2000/svg';
+    [0, 110].forEach(d => {
+      const e = document.createElementNS(NS, 'ellipse');
+      e.setAttribute('cx', 201); e.setAttribute('cy', FRONT_Y - 1);
+      e.setAttribute('fill', 'none'); e.setAttribute('stroke', '#faefdd'); e.setAttribute('stroke-width', 1.2);
+      whistle.appendChild(e);
+      const start = performance.now() + d;
+      const tick = now => {
+        const t = Math.max(0, (now - start) / 720);
+        const p = 1 - Math.pow(1 - Math.min(t, 1), 4);
+        e.setAttribute('rx', 30 + p * 175); e.setAttribute('ry', 4 + p * 20);
+        e.setAttribute('opacity', (t === 0 ? 0 : .55 * (1 - p)).toFixed(3));
+        if (t < 1) requestAnimationFrame(tick); else e.remove();
+      };
+      requestAnimationFrame(tick);
+    });
+    // The front group reacts with a tiny lift, as if they had just called out
+    front.animate([{ transform: 'none' }, { transform: 'translateY(-3px) scaleY(1.01)', offset: .35 }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });
+  };
+
+  // ---------- Tier changes ----------
+  let tier = -1;
+  const setTier = (next, animate = true) => {
+    if (next === tier) return;
+    const prev = tier;
+    tier = next;
+    updateLabels(prev, next, animate);
+    if (!animate || reduceMotion.matches) {
+      guests.forEach(g => { g.anim = null; place(g, g.x, g.s, g.tier <= next ? 1 : 0); });
+      return;
+    }
+    if (next > prev) {
+      ring();
+      // New guests: nearest first, each tier staggered on its own so a jump of several tiers still reads as waves
+      const joining = guests.filter(g => g.tier <= next && (g.cur.o < .99 || g.anim?.kind === 'out'));
+      joining.sort((a, b) => a.tier - b.tier || b.s - a.s);
+      joining.forEach((g, i) => arrive(g, 80 + i * (g.far ? 22 : 70) + Math.random() * 90));
+    } else {
+      const going = guests.filter(g => g.tier > next && (g.cur.o > 0 || g.anim?.kind === 'in'));
+      going.sort((a, b) => b.tier - a.tier || a.s - b.s);
+      going.forEach((g, i) => leave(g, i * (g.far ? 8 : 35)));
+    }
+  };
+
+  // ---------- Labels ----------
+  const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
+  let priceAnim = 0;
+  const updateLabels = (prev, next, animate) => {
+    const t = TIERS[next];
+    track.setAttribute('aria-valuenow', next);
+    track.setAttribute('aria-valuetext', `${t.aria}、${t.price === null ? '要相談' : t.price === 0 ? '無料' : yen(t.price)}`);
+    const pop = el => animate && !reduceMotion.matches && el.animate(
+      [{ transform: 'translateY(4px)', opacity: .3 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: EXPO });
+    countLabel.textContent = t.label; pop(countLabel);
+    cancelAnimationFrame(priceAnim);
+    const from = prev >= 0 ? TIERS[prev].price : null;
+    if (t.price === null || from === null || !animate || reduceMotion.matches) {
+      priceLabel.textContent = t.price === null ? '要相談' : '+ ' + yen(t.price);
+      if (from === null || t.price === null) pop(priceLabel);
+      return;
+    }
+    // Count the price up or down
+    const start = performance.now();
+    const run = now => {
+      const p = Math.min(1, (now - start) / 420);
+      priceLabel.textContent = '+ ' + yen(from + (t.price - from) * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) priceAnim = requestAnimationFrame(run);
+    };
+    priceAnim = requestAnimationFrame(run);
+  };
+
+  // ---------- Slider ----------
+  const STOPS = TIERS.length;
+  const ticks = [];
+  for (let i = 1; i < STOPS; i++) { const d = document.createElement('i'); d.className = 'tick'; track.insertBefore(d, thumb); ticks.push(d); }
+  const stopX = i => { const w = track.clientWidth; return 19 + (w - 38) * i / (STOPS - 1); };
+  const layoutTicks = () => ticks.forEach((d, j) => { d.style.left = stopX(j + 1) + 'px'; d.classList.toggle('passed', j + 1 <= tier); });
+  let thumbX = 0;
+  const setThumb = (x, smooth) => {
+    thumbX = x;
+    thumb.style.transition = smooth ? 'left .32s cubic-bezier(.2,.9,.3,1.2), transform .15s ease' : 'transform .15s ease';
+    thumb.style.left = x + 'px';
+  };
+  const nearest = x => Math.max(0, Math.min(STOPS - 1, Math.round((x - 19) / ((track.clientWidth - 38) / (STOPS - 1)))));
+  const choose = (i, smooth = true, animate = true) => { setTier(i, animate); setThumb(stopX(i), smooth); layoutTicks(); };
+
+  const localX = e => {
+    const r = track.getBoundingClientRect();
+    return (e.clientX - r.left) / r.width * track.clientWidth;
+  };
+  let dragging = false;
+  track.addEventListener('pointerdown', e => {
+    dragging = true; track.setPointerCapture(e.pointerId); track.classList.add('dragging'); stopDemo();
+    const x = Math.max(19, Math.min(track.clientWidth - 19, localX(e)));
+    setThumb(x, true); setTier(nearest(x)); layoutTicks();
+  });
+  track.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const x = Math.max(19, Math.min(track.clientWidth - 19, localX(e)));
+    setThumb(x, false); setTier(nearest(x)); layoutTicks(); // the crowd follows live while dragging
+  });
+  const end = () => { if (!dragging) return; dragging = false; track.classList.remove('dragging'); choose(nearest(thumbX)); };
+  track.addEventListener('pointerup', end);
+  track.addEventListener('pointercancel', end);
+  track.addEventListener('keydown', e => {
+    const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    if (e.key === 'Home') { e.preventDefault(); return choose(0); }
+    if (e.key === 'End') { e.preventDefault(); return choose(STOPS - 1); }
+    if (!d) return;
+    e.preventDefault(); stopDemo();
+    choose(Math.max(0, Math.min(STOPS - 1, tier + d)));
+  });
+
+  // Photos-per-person toggle (static, just for completeness)
+  const choices = [...document.querySelectorAll('.choice')];
+  choices.forEach(c => c.addEventListener('click', () => choices.forEach(o => o.setAttribute('aria-checked', String(o === c)))));
+
+  // ---------- Rail ----------
+  const tiersEl = document.getElementById('tiers');
+  let cum = 0;
+  TIERS.forEach((t, i) => {
+    cum += SLOTS[i].length;
+    const extra = i === 6 ? `+${cum} / 遠景 +${FAR.length}` : cum ? `+${cum}` : '4人のみ';
+    tiersEl.insertAdjacentHTML('beforeend',
+      `<dt class="n">${t.label.replace('~ ', '')}</dt><dd class="p">${t.price === null ? '相談' : t.price ? yen(t.price) : '無料'}</dd><dd class="g">${extra}</dd>`);
+  });
+
+  let demoTimers = [];
+  const stopDemo = () => { demoTimers.forEach(clearTimeout); demoTimers = []; };
+  document.getElementById('demo').addEventListener('click', () => {
+    stopDemo();
+    const seq = [0, 1, 2, 3, 4, 5, 6, 3, 0];
+    seq.forEach((v, i) => demoTimers.push(setTimeout(() => choose(v), i * 1500)));
+  });
+
+  // ---------- Entrance ----------
+  const intro = () => {
+    stopDemo();
+    if (reduceMotion.matches) return;
+    front.animate([
+      { opacity: 0, transform: 'translateY(40px) scale(.96)', filter: 'blur(6px)' },
+      { opacity: 1, offset: .45, filter: 'blur(0)' },
+      { opacity: 1, transform: 'none', filter: 'blur(0)' }
+    ], { duration: 1000, delay: 60, easing: EXPO, fill: 'backwards' });
+    // Anyone already gathered comes back in after the front group
+    if (tier > 0) {
+      guests.forEach(g => { g.anim = null; place(g, g.x, g.s, 0); });
+      const t = tier; tier = 0; demoTimers.push(setTimeout(() => setTier(t), 650));
+    }
+  };
+  document.getElementById('replay').addEventListener('click', intro);
+
+  addEventListener('resize', () => { setThumb(stopX(tier), false); layoutTicks(); });
+  choose(0, false, false);
+  if (document.readyState === 'complete') intro(); else addEventListener('load', intro);
+})();
+</script>
+</body>
+</html>
