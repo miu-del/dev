@@ -86,10 +86,9 @@ body {
   transform-origin: 50% 0;
   clip-path: polygon(47% 0, 53% 0, 100% 100%, 0 100%);
   /* faint where it crosses the title, strongest where it lands on the crowd */
-  background: linear-gradient(180deg, rgba(255,244,222,.08), rgba(255,244,222,.12) 32%, rgba(255,244,222,.3) 62%, rgba(255,244,222,.12) 86%, rgba(255,244,222,0));
+  background: linear-gradient(180deg, rgba(255,244,222,.06), rgba(255,244,222,.1) 32%, rgba(255,244,222,.24) 62%, rgba(255,244,222,.1) 86%, rgba(255,244,222,0));
   filter: blur(8px); mix-blend-mode: screen;
 }
-.beam.blue { background: linear-gradient(180deg, rgba(120,150,255,.08), rgba(120,150,255,.14) 32%, rgba(120,150,255,.34) 62%, rgba(120,150,255,.12) 86%, rgba(120,150,255,0)); }
 .switch { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--rail-line); border-radius: 9px; padding: 3px; gap: 3px; }
 .switch button { appearance: none; border: 0; border-radius: 6px; background: transparent; color: var(--ink-dim); font: 500 14px/1 var(--font-jp); padding: 9px 10px; cursor: pointer; }
 .switch button[aria-pressed="true"] { background: var(--accent); color: #fff; }
@@ -192,8 +191,6 @@ body {
         <div class="glow" id="glow"></div>
         <div class="beam" style="left: 26px"></div>
         <div class="beam" style="left: 376px"></div>
-        <div class="beam blue" style="left: 128px"></div>
-        <div class="beam blue" style="left: 274px"></div>
       </div>
       <canvas id="sky" width="804" height="904" aria-hidden="true"></canvas>
       <div class="status" aria-hidden="true">
@@ -292,8 +289,8 @@ body {
         <dt>175人</dt><dd>+12人がさらに両脇へ, ズーム .64</dd>
         <dt>犬</dt><dd>群衆の前をうろつく: 歩き 40–85 / 小走り 120–170px/s を ±25% で揺らし, 55% の確率で 0.5–1.8s 立ち止まる</dd>
         <dt>電飾</dt><dd>画面の外から4本, 中央から描画 700ms, 電球は 45ms 間隔で点灯</dd>
-        <dt>花火</dt><dd>250人以上, 最初に3発, その後 0.7–1.3s ごと, 56–80 粒</dd>
-        <dt>スポットライト</dt><dd>250人以上, 4本が 520ms のフリッカーで点灯, ±9–14° で首振り, 足元が明るくなる</dd>
+        <dt>花火</dt><dd>250人以上, 最初に2発, その後 1.4–2.4s ごと, 40–56 粒</dd>
+        <dt>スポットライト</dt><dd>250人以上, 左右2本が 520ms のフリッカーで点灯, ±9° で首振り, 足元が明るくなる</dd>
       </dl>
     </div>
   </aside>
@@ -657,7 +654,7 @@ body {
   let fireworks = false, nextLaunch = 0;
   const launch = () => rockets.push({ x: rand(60, 342), y: 440, vy: -rand(320, 380), top: rand(90, 220), colors: FIRE[Math.floor(rand(0, FIRE.length))] });
   const burst = r => {
-    const n = Math.floor(rand(56, 80)), v0 = rand(120, 170);
+    const n = Math.floor(rand(40, 56)), v0 = rand(110, 150);
     for (let i = 0; i < n; i++) {
       const a = i / n * Math.PI * 2 + rand(-.05, .05), v = v0 * rand(.85, 1.05);
       sparks.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(1.1, 1.6), age: 0, color: r.colors[i % 2], tw: Math.random() < .3 });
@@ -668,7 +665,7 @@ body {
   const glow = document.getElementById('glow');
   const beams = [...document.querySelectorAll('.beam')].map((el, i) => ({
     el, on: false,
-    base: [-19, 19, -8, 8][i], swing: [9, 9, 14, 14][i], period: [5.5, 6.1, 3.2, 3.6][i], phase: [0, 2, 1, 3.4][i], delay: [0, 120, 300, 420][i]
+    base: [-19, 19][i], swing: [9, 9][i], period: [5.5, 6.1][i], phase: [0, 2][i], delay: [0, 160][i]
   }));
   const beamOn = (b, on) => {
     if (b.on === on) return;
@@ -689,7 +686,7 @@ body {
     beams.forEach(b => beamOn(b, spot));
     glow.style.opacity = spot ? 1 : 0;
     const fw = next >= 6 && finale === 'fireworks';
-    if (fw && !fireworks && motionOn()) { [0, 260, 520].forEach(d => setTimeout(() => fireworks && launch(), 300 + d)); nextLaunch = performance.now() + 1500; }
+    if (fw && !fireworks && motionOn()) { [0, 380].forEach(d => setTimeout(() => fireworks && launch(), 300 + d)); nextLaunch = performance.now() + 2200; }
     fireworks = fw;
   };
 
@@ -708,7 +705,7 @@ body {
     if (lightsOn && on) strands.forEach(st => st.bulbs.forEach(b => b.halo.setAttribute('opacity', (.45 + .4 * Math.sin(t * b.speed + b.phase)).toFixed(2))));
 
     // Fireworks
-    if (fireworks && motionOn() && now > nextLaunch) { launch(); nextLaunch = now + rand(700, 1300); }
+    if (fireworks && motionOn() && now > nextLaunch) { launch(); nextLaunch = now + rand(1400, 2400); }
     sky.clearRect(0, 0, 402, 452);
     for (let i = rockets.length - 1; i >= 0; i--) {
       const r = rockets[i];
