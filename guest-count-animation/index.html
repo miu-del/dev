@@ -272,7 +272,7 @@ body {
   <aside class="rail">
     <div>
       <h1>Guest Count Gathering</h1>
-      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。100人まではゲストが走って集まり、後半はカメラが引いていきます。175人からは人ではなく、スポットライト・電飾・クラッカーで会場が盛り上がっていきます。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
+      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。100人まではゲストが足元からポンと1人ずつ現れ、後半はカメラが引いていきます。175人からは人ではなく、スポットライト・電飾・クラッカーで会場が盛り上がっていきます。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
     </div>
 
     <fieldset class="group">
@@ -293,8 +293,10 @@ body {
     <div class="spec">
       <div class="group"><span class="label">タイミング（実装メモ）</span></div>
       <dl>
-        <dt>到着の時差</dt><dd>1人あたり 70ms + ランダム 0–90ms</dd>
-        <dt>走る時間</dt><dd>距離に比例 650–1300ms, ease-out</dd>
+        <dt>出現</dt><dd>足元基点 scale 0 → 1.13 → .98 → 1 / 650ms</dd>
+        <dt>不透明度</dt><dd>0 → 1（出現の最初の 35%）</dd>
+        <dt>出現の順番</dt><dd>中央から外へ 75ms 間隔</dd>
+        <dt>消える</dt><dd>1.06 に膨らんでから 0 へ / 260ms, 30ms 間隔</dd>
         <dt>カメラのズーム</dt><dd>1 → .88 → .76 → .72 / 1100ms ease-in-out</dd>
         <dt>ズームの支点</dt><dd>手前4人の足元（中央）</dd>
         <dt>呼吸</dt><dd>scaleY 1.007 / 4.2s（体は足元基点）</dd>
@@ -470,39 +472,28 @@ body {
     g.el.style.zIndex = Math.round(feetY(g.s) * 10);
     g.el.style.filter = `brightness(${fog(g.s).toFixed(2)})`;
     world.appendChild(g.el);
-    g.cur = { x: g.x, s: g.s, o: 0 }; // current pose (start point for interrupted moves)
+    g.cur = { x: g.x, s: g.s, o: 0, k: 0 }; // current pose (start point for interrupted moves)
     g.anim = null;
   });
   front.style.zIndex = FRONT_Y * 10 + 5;
 
-  const place = (g, x, s, o, lift = 0, tilt = 0, sy = 1) => {
-    const scale = BASE_H * s * g.hf / 200;
+  // k: grow factor for the pop-in (0 = not there, 1 = full size), scaled from the feet
+  const place = (g, x, s, o, lift = 0, tilt = 0, sy = 1, k = 1) => {
+    const scale = BASE_H * s * g.hf / 200 * k;
     g.el.style.transform = `translate(${x - 30}px, ${feetY(s) - 200 - lift}px) rotate(${tilt}deg) scale(${scale}, ${scale * sy})`;
     g.el.style.opacity = o;
-    g.cur = { x, s, o };
+    g.cur = { x, s, o, k };
   };
 
-  const easeOut = t => 1 - Math.pow(1 - t, 2.2);
-  const easeIn = t => t * t;
-  const RUN_HZ = 3.4, BOB = 7, HOP = 380, BEAT = 2; // BEAT: beats per second (120 BPM)
-
-  // Off-screen x in world space for the given camera zoom
-  const offscreen = (side, z) => CX + side * (CX / z + 50 + Math.random() * 30);
-  // Where a guest runs in from: the near side edge for the front rows, the far horizon for the back
-  const entryPoint = (g, z) => {
-    const side = g.x < CX ? -1 : 1;
-    if (g.s < .56) return { x: g.x + side * rand(60, 130), s: g.s * .55 };
-    return { x: offscreen(side, z), s: g.s * rand(.82, .92) };
-  };
-  const arrive = (g, delay, z) => {
-    const from = g.cur.o > .05 ? { ...g.cur } : entryPoint(g, z);
-    const dist = Math.hypot(g.x - from.x, (g.s - from.s) * 300);
-    g.anim = { kind: 'in', start: performance.now() + delay, dur: Math.min(1300, 650 + dist * 2.2), from, o0: g.cur.o, phase: Math.random() * Math.PI };
+  const BEAT = 2; // beats per second (120 BPM)
+  // Pop-in: grow from 0 at the feet with a springy overshoot (≈1.13 → .98 → 1), fading in over the first third
+  const POP_IN = 650, POP_OUT = 260;
+  const spring = t => 1 - Math.exp(-7 * t) * Math.cos(11 * t);
+  const arrive = (g, delay) => {
+    g.anim = { kind: 'in', start: performance.now() + delay, dur: POP_IN, k0: g.cur.o > 0 ? g.cur.k : 0, o0: g.cur.o };
   };
   const leave = (g, delay) => {
-    const side = g.x < CX ? -1 : 1;
-    const to = g.s < .56 ? { x: g.x + side * 90, s: g.s * .55 } : { x: offscreen(side, cam.z), s: g.cur.s * .9 };
-    g.anim = { kind: 'out', start: performance.now() + delay, dur: rand(520, 760), from: { ...g.cur }, to, o0: g.cur.o, phase: Math.random() * Math.PI };
+    g.anim = { kind: 'out', start: performance.now() + delay, dur: POP_OUT, k0: g.cur.k, o0: g.cur.o };
   };
 
   // ---------- Idle + party groove ----------
@@ -556,31 +547,17 @@ body {
       if (!a) { if (g.cur.o > 0) idleGuest(g, now, t); continue; }
       const p0 = (now - a.start) / a.dur;
       if (p0 < 0) continue;
-      const dir = Math.sign((a.kind === 'in' ? g.x : a.to.x) - a.from.x) || 1;
-      const el = now - a.start;
-      const bob = Math.abs(Math.sin(a.phase + el / 1000 * Math.PI * RUN_HZ));
+      g.hd.style.transform = '';
       if (a.kind === 'in') {
-        if (p0 < 1) {
-          const p = easeOut(p0);
-          const x = a.from.x + (g.x - a.from.x) * p, s = a.from.s + (g.s - a.from.s) * p;
-          const settle = 1 - Math.pow(p0, 3); // the run calms down as they reach the slot
-          place(g, x, s, Math.min(1, a.o0 + p0 * 4), bob * BOB * s * settle, (dir * 7 + Math.sin(el / 90) * 4) * settle, 1 - (1 - bob) * .04 * settle);
-          g.hd.style.transform = `rotate(${-dir * 4 * settle}deg)`;
-        } else {
-          // Arrival hop: a small jump, then a squash on landing
-          const h = Math.min(1, (el - a.dur) / HOP);
-          const jump = Math.sin(Math.min(1, h / .6) * Math.PI) * 9 * g.s;
-          const squash = h > .6 ? 1 - Math.sin((h - .6) / .4 * Math.PI) * .06 : 1 + Math.sin(h / .6 * Math.PI) * .03;
-          place(g, g.x, g.s, 1, jump, 0, squash);
-          g.hd.style.transform = '';
-          if (h >= 1) g.anim = null;
-        }
+        const p = Math.min(1, p0);
+        place(g, g.x, g.s, Math.min(1, a.o0 + p / .35), 0, 0, 1, a.k0 + (1 - a.k0) * spring(p));
+        if (p0 >= 1) g.anim = null;
       } else {
-        const p = easeIn(Math.min(1, p0));
-        const x = a.from.x + (a.to.x - a.from.x) * p, s = a.from.s + (a.to.s - a.from.s) * p;
-        const o = p0 < .55 ? a.o0 : a.o0 * Math.max(0, 1 - (p0 - .55) / .45);
-        place(g, x, s, o, bob * BOB * s, dir * 8 + Math.sin(el / 90) * 4);
-        if (p0 >= 1) { place(g, g.x, g.s, 0); g.anim = null; }
+        // A small swell before shrinking back into the feet
+        const p = Math.min(1, p0);
+        const k = a.k0 * (p < .25 ? 1 + .06 * Math.sin(p / .25 * Math.PI / 2) : 1.06 * (1 - Math.pow((p - .25) / .75, 2)));
+        place(g, g.x, g.s, a.o0 * (1 - Math.max(0, p - .3) / .7), 0, 0, 1, Math.max(0, k));
+        if (p0 >= 1) { place(g, g.x, g.s, 0, 0, 0, 1, 0); g.anim = null; }
       }
     }
     stepParty(now, dt, t);
@@ -797,7 +774,7 @@ body {
     const peopleTier = Math.min(next, 3), prevPeople = Math.min(Math.max(prev, 0), 3);
     if (!animate || !motionOn()) {
       cam = { z: TIERS[next].zoom, from: TIERS[next].zoom, to: TIERS[next].zoom, start: 0, dur: 1 };
-      guests.forEach(g => { g.anim = null; place(g, g.x, g.s, g.tier <= peopleTier ? 1 : 0); });
+      guests.forEach(g => { g.anim = null; const on = g.tier <= peopleTier ? 1 : 0; place(g, g.x, g.s, on, 0, 0, 1, on); });
       return;
     }
     zoomTo(TIERS[next].zoom);
@@ -805,12 +782,13 @@ body {
       ring();
       // New guests: nearest first, each tier staggered on its own so a jump of several tiers still reads as waves
       const joining = guests.filter(g => g.tier <= peopleTier && (g.cur.o < .99 || g.anim?.kind === 'out'));
-      joining.sort((a, b) => a.tier - b.tier || b.s - a.s);
-      joining.forEach((g, i) => arrive(g, 80 + i * 70 + Math.random() * 90, TIERS[next].zoom));
+      // One after another, spreading outwards from the centre
+      joining.sort((a, b) => a.tier - b.tier || Math.abs(a.x - CX) - Math.abs(b.x - CX));
+      joining.forEach((g, i) => arrive(g, 60 + i * 75));
     } else if (peopleTier < prevPeople) {
       const going = guests.filter(g => g.tier > peopleTier && (g.cur.o > 0 || g.anim?.kind === 'in'));
-      going.sort((a, b) => b.tier - a.tier || a.s - b.s);
-      going.forEach((g, i) => leave(g, i * 35));
+      going.sort((a, b) => b.tier - a.tier || Math.abs(b.x - CX) - Math.abs(a.x - CX));
+      going.forEach((g, i) => leave(g, i * 30));
     }
   };
 
