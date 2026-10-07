@@ -219,14 +219,6 @@ body {
         </div>
         <svg class="deco" id="deco" viewBox="0 0 402 452" aria-hidden="true">
         <defs>
-          <!-- Grain on the drawn dog, close to the risograph texture of the original art -->
-          <filter id="grain" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
-            <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="7" result="noise"/>
-            <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3.2 0 0 0 1.75" result="speck"/>
-            <feComposite in="speck" in2="SourceGraphic" operator="in" result="clipped"/>
-            <feComponentTransfer in="clipped" result="soft"><feFuncA type="linear" slope=".5"/></feComponentTransfer>
-            <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="soft"/></feMerge>
-          </filter>
           <filter id="bulbGlow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.6"/></filter>
         </defs>
         <g id="garland"></g>
@@ -456,7 +448,10 @@ body {
     // so her head layer is cut with a polygon that stops at the collar.
     florist: { w: 89.6, h: 300, e: [50.3, 19.5, 18.4, 19.5], pivot: [48, 39.1], eyes: [[39.3, 18.8], [44.1, 19.1]], skin: '#fcf0d9' },
     kid:     { w: 115.5, h: 210, poly: [[12.2, -1.8], [108.5, -1.8], [108.5, 63], [84, 63], [77, 55.1], [69.1, 52.5], [46.4, 52.5], [38.5, 55.1], [31.5, 63], [12.2, 63]],
-               pivot: [57.7, 51.6], eyes: [[41.6, 23.8], [57, 25.5]], skin: '#fbf1d9' }
+               pivot: [57.7, 51.6], eyes: [[41.6, 23.8], [57, 25.5]], skin: '#fbf1d9' },
+    // The dog faces right (the people face left); its head sniffs and blinks like everyone else's
+    dog:     { w: 113.6, h: 84, poly: [[65, -1.1], [113.6, -1.1], [113.6, 23.9], [85.9, 26.2], [78.7, 29.3], [65.9, 22]],
+               pivot: [77.3, 27.7], eyes: [[88.8, 7.4]], skin: '#e3e2df', facesRight: true, size: 1, amp: 2 }
   };
   const SPRITE_PX = 204 / 302; // the tall man is the full 204px height of the front group at depth 1
   Object.entries(SPRITES).forEach(([name, sp]) => {
@@ -487,40 +482,14 @@ body {
     return { el, head, lids };
   };
 
-  // Animals are drawn in the same flat, grainy palette as the people. Each has its own head group
-  // (pivot at the neck) and eye group, so the same tilt and blink apply. Sizes are in sprite px (the tall man is 302).
-  const A = { cream: '#f6ead6', blue: '#1a5fae', blue2: '#2f6fb8', navy: '#173a66', ink: '#1d2230', eye: '#06070a', cheek: '#9fb3d6', beak: '#d99a55' };
-  const ANIMALS = {
-    dog: { w: 112, h: 84, pivot: [34, 40], eyesAt: [20, 25], amp: 2, size: 1, body:
-      `<path d="M92 34c8-6 12-16 10-24" stroke="${A.cream}" stroke-width="5" stroke-linecap="round" fill="none"/>
-       <g class="legA" stroke="${A.cream}" stroke-width="6" stroke-linecap="round"><path d="M40 50 30 78M50 50l6 28M80 50l-8 28M88 50l8 28"/></g>
-       <g class="legB" stroke="${A.cream}" stroke-width="6" stroke-linecap="round" style="display:none"><path d="M40 50l8 28M50 50 38 78M80 50l10 28M88 50l-10 28"/></g>
-       <ellipse cx="62" cy="40" rx="32" ry="15" fill="${A.cream}"/><ellipse cx="72" cy="36" rx="10" ry="7" fill="${A.navy}"/>`,
-      head: `<rect x="30" y="34" width="9" height="6" fill="${A.blue}"/>
-       <circle cx="26" cy="27" r="14" fill="${A.cream}"/><ellipse cx="12" cy="34" rx="10" ry="6.5" fill="${A.cream}"/>
-       <ellipse cx="4" cy="31.5" rx="3" ry="2.4" fill="${A.eye}"/><path d="M29 15c8-2 12 6 10 20-4-2-8-10-10-20z" fill="${A.navy}"/>
-       <path d="M8 39q5 3 10 0" stroke="${A.eye}" stroke-width="1" fill="none"/>`,
-      eyes: [[20, 25]] }
-  };
-  const animalEl = sp => {
-    const el = document.createElement('div');
-    el.className = 'guest';
-    el.style.width = sp.w + 'px'; el.style.height = sp.h + 'px';
-    const eyes = sp.eyes.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.6" fill="${A.eye}"/>`).join('');
-    el.innerHTML = `<svg width="${sp.w}" height="${sp.h}" viewBox="0 0 ${sp.w} ${sp.h}" style="overflow:visible; display:block"><g filter="url(#grain)">${sp.body}</g>` +
-      `<g class="hd" style="transform-origin:${sp.pivot[0]}px ${sp.pivot[1]}px"><g filter="url(#grain)">${sp.head}</g>` +
-      `<g class="ey" style="transform-origin:${sp.eyesAt[0]}px ${sp.eyesAt[1]}px">${eyes}</g></g></svg>`;
-    return { el, head: el.querySelector('.hd'), lids: [el.querySelector('.ey')], legA: el.querySelector('.legA'), legB: el.querySelector('.legB') };
-  };
-
   const guests = [];
   SLOTS.forEach((list, tier) => list.forEach(([x, s], i) => guests.push({ tier, x, s, seed: tier * 31 + i * 7 + 3 })));
   ANIMAL_SLOTS.forEach(([x, s, kind], i) => guests.push({ tier: ANIMAL_TIER, x, s, seed: 400 + i * 11, kind }));
   let humanIndex = 0;
   guests.forEach(g => {
     g.flip = g.x < CX ? -1 : 1; // the art faces left, so guests on the left are mirrored to face the centre
-    if (g.kind) { g.sp = ANIMALS[g.kind]; Object.assign(g, animalEl(g.sp)); }
-    else { g.sp = SPRITES[CAST[humanIndex++ % CAST.length]]; Object.assign(g, buildGuest(g.sp, g.flip)); }
+    g.sp = g.kind ? SPRITES[g.kind] : SPRITES[CAST[humanIndex++ % CAST.length]];
+    Object.assign(g, buildGuest(g.sp, g.flip));
     const r = rng(g.seed * 13);
     g.hf = .95 + r() * .1; // height variety
     g.phase = r() * 6.28; g.period = 3.4 + r() * 2.2; g.amp = g.sp.amp ?? 1.5 + r() * 1.5;
@@ -598,17 +567,17 @@ body {
       else {
         g.x += Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
         g.s += (P.ts - g.s) * (1 - Math.exp(-dt * 2));
-        g.flip = dx > 0 ? -1 : 1; // art faces left
+        g.flip = (dx > 0) === !!g.sp.facesRight ? 1 : -1; // face the way it walks
       }
     }
     g.el.style.zIndex = Math.round(feetY(g.s) * 10);
-    // Legs and bounce follow the pace; at rest the head dips as if sniffing
+    // Gait: a bounce and a rock that follow the pace; at rest the nose dips as if sniffing
     g.stride = (g.stride || 0) + dt * (speed ? 4 + speed / 11 : 0);
     const gallop = Math.sin(g.stride);
     const moving = speed > 0;
-    g.legA.style.display = !moving || gallop > 0 ? '' : 'none'; g.legB.style.display = !moving || gallop > 0 ? 'none' : '';
-    place(g, g.x, g.s, 1, moving ? Math.abs(gallop) * (1.5 + speed / 45) * g.s : 0, moving ? -g.flip * gallop * 3 : 0);
-    g.head.style.transform = `rotate(${moving ? Math.sin(g.stride + 1) * 4 : -8 + Math.sin(t * 6) * 3}deg)`;
+    place(g, g.x, g.s, 1, moving ? Math.abs(gallop) * (1.2 + speed / 50) * g.s : 0, moving ? gallop * 2.2 : 0, moving ? 1 - Math.abs(gallop) * .02 : 1);
+    g.head.style.transform = `rotate(${moving ? Math.sin(g.stride + 1) * 3 : 6 + Math.sin(t * 6) * 2.5}deg)`; // + is nose down (art faces right)
+    if (!moving && performance.now() > g.nextBlink) { blink(g.lids, false); g.nextBlink = performance.now() + rand(2400, 5000); }
   };
 
   const idleGuest = (g, now, t) => {
