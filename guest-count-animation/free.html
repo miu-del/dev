@@ -75,8 +75,10 @@ body {
 /* Crowd stage: the camera (.world) scales around the front group's feet to "zoom out" */
 .stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; }
 .world { position: absolute; inset: 0; transform-origin: 201px 222px; }
-/* Far-off scenes (karaoke, beach) sit behind every guest */
-.backdrop { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 1; }
+/* Palm trees stand behind every guest */
+.sides { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 1; }
+/* Fireworks burst behind the title and the crowd */
+#sky { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 0; }
 .front { position: absolute; left: 116px; top: 16px; width: 170.5px; height: 204px; transform-origin: 50% 100%; }
 .rig { position: absolute; inset: 0; transform-origin: 50% 100%; }
 .part { position: absolute; inset: 0; background: url(assets/guests-front.png) 0 0 / 170.5px 204px no-repeat; }
@@ -171,6 +173,7 @@ body {
 <div class="layout">
   <div class="phone-slot" id="phoneSlot">
     <div class="phone" id="phone">
+      <canvas id="sky" width="804" height="904" aria-hidden="true"></canvas>
       <div class="status" aria-hidden="true">
         <span>9:41</span>
         <span class="status-icons">
@@ -187,22 +190,13 @@ body {
 
       <div class="stage" id="stage" aria-hidden="true">
         <div class="world" id="world">
-          <svg class="backdrop" id="backdrop" viewBox="0 0 402 230">
-            <defs>
-              <filter id="neon" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-              <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
-              <!-- The scenes' lower edges dissolve into the dark behind the crowd's heads -->
-              <linearGradient id="backFadeGrad" gradientUnits="userSpaceOnUse" x1="0" y1="72" x2="0" y2="92"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
-              <mask id="backFade" maskUnits="userSpaceOnUse" x="-300" y="-300" width="1000" height="600"><rect x="-300" y="-300" width="1000" height="600" fill="url(#backFadeGrad)"/></mask>
-            </defs>
-            <g id="backRoot" mask="url(#backFade)"></g>
-          </svg>
+          <svg class="sides" id="sides" viewBox="0 0 402 230"></svg>
           <div class="front" id="front"><div class="rig" id="rig"></div></div>
         </div>
       </div>
       <svg class="deco" id="deco" viewBox="0 0 402 452" aria-hidden="true">
         <defs>
-          <!-- Grain shared by the drawn animals and helicopters, close to the risograph texture of the original art -->
+          <!-- Grain shared by the drawn dog and palm trees, close to the risograph texture of the original art -->
           <filter id="grain" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
             <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="7" result="noise"/>
             <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3.2 0 0 0 1.75" result="speck"/>
@@ -210,7 +204,9 @@ body {
             <feComponentTransfer in="clipped" result="soft"><feFuncA type="linear" slope=".5"/></feComponentTransfer>
             <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="soft"/></feMerge>
           </filter>
+          <filter id="bulbGlow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.6"/></filter>
         </defs>
+        <g id="garland"></g>
       </svg>
 
       <div class="picker">
@@ -235,7 +231,7 @@ body {
   <aside class="rail">
     <div>
       <h1>Guest Count Free Crowd</h1>
-      <p class="lead">別案「自由な人たち」。人数を増やすたびに、思い思いに過ごす人たちが増えていきます。100人では人が奥へ奥へと並び、175人で動物たち（犬は走り回る）、250人で奥にカラオケ会場、250人以上でビーチと椰子の木が現れます。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
+      <p class="lead">別案「自由な人たち」。人数を増やすたびに横へ広がり、カメラが引いていきます。175人で犬が群衆の前を駆け抜け、250人で両脇にヤシの木と頭上に電飾、250人以上で花火が上がります。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
     </div>
 
     <fieldset class="group">
@@ -264,13 +260,11 @@ body {
         <dt>呼吸</dt><dd>scaleY 1.007 / 4.2s（体は足元基点）</dd>
         <dt>首かしげ</dt><dd>±1.4–2.2° / 3.7–5.3s, 人ごとに位相ずらし</dd>
         <dt>まばたき</dt><dd>150ms, 2.4–5.5s 間隔, 20% で2回</dd>
-        <dt>100人の並び</dt><dd>横ではなく奥へ 4 列, 奥ほど小さく暗く</dd>
-        <dt>動物</dt><dd>175人で4匹, 人の 72% の大きさ, 同じポップ</dd>
-        <dt>犬</dt><dd>群衆のまわりを楕円で周回, 1周 6.6s, 手前では4人の前を通る</dd>
-        <dt>カラオケ会場</dt><dd>250人, 奥の右側に 9 パーツが 60–90ms 間隔でポップ</dd>
-        <dt>カラオケの動き</dt><dd>歌詞ワイプ 2.6s, スピーカーが拍で脈打つ, ♪が上る</dd>
-        <dt>ビーチ</dt><dd>250人以上, 奥の左側に海・砂浜・椰子3本・パラソル</dd>
-        <dt>寝転ぶ人</dt><dd>同じ4人を横倒しにしてタオルの上に, ビーチボールが跳ねる</dd>
+        <dt>175人</dt><dd>+12人がさらに両脇へ, ズーム .64</dd>
+        <dt>犬</dt><dd>群衆の前を右→左へ 170px/s, 画面外で 0.6–1.8s 待って右から再登場</dd>
+        <dt>ヤシの木</dt><dd>250人, 両脇に2本ずつ, 足元からポップ + 葉が揺れる</dd>
+        <dt>電飾</dt><dd>ヤシの間に4本, 中央から描画 700ms, 電球は 45ms 間隔で点灯</dd>
+        <dt>花火</dt><dd>250人以上, 最初に3発, その後 0.7–1.3s ごと, 56–80 粒</dd>
       </dl>
     </div>
   </aside>
@@ -295,10 +289,10 @@ body {
     { label: '~ 10人', aria: '10人まで', price: 0, zoom: 1, note: '4人のみ' },
     { label: '~ 25人', aria: '25人まで', price: 2500, zoom: 1, note: '+2人' },
     { label: '~ 50人', aria: '50人まで', price: 5000, zoom: .88, note: '+5人・少し引く' },
-    { label: '~ 100人', aria: '100人まで', price: 10000, zoom: .76, note: '+12人・奥へ並ぶ' },
-    { label: '~ 175人', aria: '175人まで', price: 20000, zoom: .72, note: '動物4匹（犬が走る）' },
-    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .72, note: '奥にカラオケ会場' },
-    { label: '250人以上', aria: '250人以上', price: null, zoom: .72, note: 'ビーチと椰子の木' }
+    { label: '~ 100人', aria: '100人まで', price: 10000, zoom: .76, note: '+12人・さらに引く' },
+    { label: '~ 175人', aria: '175人まで', price: 20000, zoom: .64, note: '+12人と犬・さらに引く' },
+    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .64, note: 'ヤシの木と電飾' },
+    { label: '250人以上', aria: '250人以上', price: null, zoom: .64, note: '花火' }
   ];
   const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -326,18 +320,21 @@ body {
     [],
     [[92, .9], [312, .9]],
     [[48, .78], [356, .78], [207, .66], [130, .62], [278, .62]],
-    // 100: rows stacking backwards into the distance rather than out to the sides
-    [[64, .64], [160, .6], [250, .6], [340, .64], [104, .52], [204, .5], [300, .52], [40, .44], [150, .42], [254, .42], [362, .44], [204, .36]],
-    [], []
+    [[-12, .9], [414, .9], [14, .7], [390, .7], [168, .54], [244, .54], [78, .58], [328, .58], [104, .5], [300, .48], [-44, .74], [446, .74]],
+    [[-90, .9], [492, .9], [-70, .7], [472, .7], [-108, .78], [510, .78], [-30, .58], [432, .58], [52, .48], [350, .48], [-58, .52], [460, .52]],
+    []
   ];
-  // 175: four animals join; the dog does not stay put and runs laps around the crowd
+  // 175: a dog joins too, and never stays put: it dashes across in front of the crowd, right to left, again and again
   const ANIMAL_TIER = 4, ANIMAL_SIZE = .72;
-  const ANIMAL_SLOTS = [[94, 1, 'cat'], [310, 1, 'rabbit'], [376, .98, 'bear'], [380, 1.02, 'dog']];
+  const ANIMAL_SLOTS = [[560, 1.05, 'dog']];
 
   // ---------- Camera ----------
   let cam = { z: 1, from: 1, to: 1, start: 0, dur: 1 };
   const zoomTo = z => { cam = { z: cam.z, from: cam.z, to: z, start: performance.now(), dur: 1100 }; };
   const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  // Just past the visible edge of the world at the current zoom (side: -1 left, 1 right)
+  const offEdge = side => CX + side * (CX / cam.z + 70);
+  const DASH = { speed: 170, pause: [600, 1800] }; // dog: world px/s, ms off-screen before the next pass
 
   // ---------- Front four: split into a body layer and four head layers (Live2D-style rig) ----------
   // Head ellipses and neck pivots in display px of the 170.5×204 cut-out
@@ -417,46 +414,6 @@ body {
   // (pivot at the neck) and eye group, so the same tilt and blink apply. Sizes are in sprite px (the tall man is 302).
   const A = { cream: '#f6ead6', blue: '#1a5fae', blue2: '#2f6fb8', navy: '#173a66', ink: '#1d2230', eye: '#06070a', cheek: '#9fb3d6', beak: '#d99a55' };
   const ANIMALS = {
-    penguin: { w: 76, h: 150, pivot: [38, 66], eyesAt: [38, 46], amp: 3, body:
-      `<path d="M38 150C10 150 6 120 8 95 10 60 20 30 38 28s28 32 30 67c2 25-2 55-30 55z" fill="${A.navy}"/>
-       <path d="M38 146c-16 0-20-24-19-46 1-24 9-42 19-44 10 2 18 20 19 44 1 22-3 46-19 46z" fill="${A.cream}"/>
-       <path d="M10 82c-8 16-8 34-4 42 4-12 8-26 10-38zM66 82c8 16 8 34 4 42-4-12-8-26-10-38z" fill="${A.ink}"/>
-       <ellipse cx="29" cy="148" rx="8" ry="3" fill="${A.beak}"/><ellipse cx="47" cy="148" rx="8" ry="3" fill="${A.beak}"/>`,
-      head: `<circle cx="38" cy="44" r="20" fill="${A.navy}"/><ellipse cx="38" cy="50" rx="12" ry="11" fill="${A.cream}"/>
-       <path d="M38 51l-8 4 8 3z" fill="${A.beak}"/><circle cx="46" cy="53" r="3" fill="${A.cheek}" opacity=".7"/>`,
-      eyes: [[33, 46], [43, 46]] },
-    cat: { w: 92, h: 140, pivot: [45, 60], eyesAt: [45, 37], amp: 3.5, body:
-      `<path d="M74 128c10-4 16-14 12-26-2-6-8-6-8 0 2 10-2 16-8 18z" fill="${A.blue2}"/>
-       <path d="M45 52C20 54 12 90 14 120c1 14 12 20 31 20s30-6 31-20c2-30-6-66-31-68z" fill="${A.blue2}"/>
-       <ellipse cx="45" cy="104" rx="14" ry="24" fill="${A.cream}"/>
-       <ellipse cx="36" cy="137" rx="7" ry="4" fill="${A.cream}"/><ellipse cx="54" cy="137" rx="7" ry="4" fill="${A.cream}"/>`,
-      head: `<path d="M24 30 22 6l16 14zM66 30l2-24-16 14z" fill="${A.blue2}"/><path d="M27 24l-1-12 8 7zM63 24l1-12-8 7z" fill="${A.cream}"/>
-       <ellipse cx="45" cy="38" rx="24" ry="20" fill="${A.blue2}"/><ellipse cx="45" cy="45" rx="11" ry="8" fill="${A.cream}"/>
-       <path d="M43 42h4l-2 2.4z" fill="${A.eye}"/><path d="M30 45h-12M30 48l-11 3M60 45h12M60 48l11 3" stroke="${A.cream}" stroke-width=".8"/>`,
-      eyes: [[37, 36], [53, 36]] },
-    rabbit: { w: 80, h: 222, pivot: [40, 102], eyesAt: [40, 80], amp: 2.6, body:
-      `<rect x="30" y="180" width="5" height="38" fill="${A.cream}"/><rect x="45" y="180" width="5" height="38" fill="${A.cream}"/>
-       <ellipse cx="30" cy="219" rx="9" ry="3" fill="${A.cream}"/><ellipse cx="50" cy="219" rx="9" ry="3" fill="${A.cream}"/>
-       <path d="M30 100c-8 2-10 12-10 26l-6 60h52l-6-60c0-14-2-24-10-26z" fill="${A.blue}"/>
-       <path d="M22 108c-6 14-6 34-3 46l5-1c-1-14 0-30 3-42zM58 108c6 14 6 34 3 46l-5-1c1-14 0-30-3-42z" fill="${A.navy}"/>`,
-      head: `<rect x="38" y="90" width="4" height="14" fill="${A.cream}"/>
-       <ellipse cx="31" cy="34" rx="7" ry="30" fill="${A.cream}" transform="rotate(-6 31 34)"/><ellipse cx="31" cy="38" rx="3" ry="22" fill="${A.cheek}" transform="rotate(-6 31 38)"/>
-       <ellipse cx="50" cy="36" rx="7" ry="30" fill="${A.cream}" transform="rotate(9 50 36)"/><ellipse cx="50" cy="40" rx="3" ry="22" fill="${A.cheek}" transform="rotate(9 50 40)"/>
-       <ellipse cx="40" cy="80" rx="20" ry="21" fill="${A.cream}"/><circle cx="48" cy="88" r="3" fill="${A.cheek}" opacity=".8"/>
-       <path d="M38 86h4l-2 2z" fill="${A.eye}"/>`,
-      eyes: [[34, 79], [46, 79]] },
-    bear: { w: 112, h: 272, pivot: [56, 100], eyesAt: [51, 58], amp: 2, body:
-      `<rect x="32" y="220" width="20" height="48" rx="8" fill="${A.navy}"/><rect x="60" y="220" width="20" height="48" rx="8" fill="${A.navy}"/>
-       <ellipse cx="42" cy="268" rx="13" ry="4" fill="${A.ink}"/><ellipse cx="70" cy="268" rx="13" ry="4" fill="${A.ink}"/>
-       <path d="M56 92c-30 0-40 28-40 68s10 72 40 72 40-32 40-72-10-68-40-68z" fill="${A.navy}"/>
-       <ellipse cx="56" cy="168" rx="22" ry="38" fill="${A.blue}"/>
-       <path d="M20 112c-10 22-10 52-4 70l9-2c-3-18-2-44 5-62zM92 112c10 22 10 52 4 70l-9-2c3-18 2-44-5-62z" fill="${A.ink}"/>
-       <path d="M44 96l12 6 12-6v12l-12-6-12 6z" fill="${A.cream}"/><circle cx="56" cy="102" r="3" fill="${A.cream}"/>`,
-      head: `<circle cx="28" cy="32" r="11" fill="${A.navy}"/><circle cx="84" cy="32" r="11" fill="${A.navy}"/>
-       <circle cx="28" cy="32" r="5" fill="${A.blue}"/><circle cx="84" cy="32" r="5" fill="${A.blue}"/>
-       <circle cx="56" cy="62" r="34" fill="${A.navy}"/><ellipse cx="51" cy="74" rx="13" ry="10" fill="${A.cream}"/>
-       <ellipse cx="49" cy="68" rx="4.5" ry="3" fill="${A.eye}"/><path d="M49 72v4m-4 0q4 3 8 0" stroke="${A.eye}" stroke-width="1" fill="none"/>`,
-      eyes: [[40, 58], [62, 58]] },
     dog: { w: 112, h: 84, pivot: [34, 40], eyesAt: [20, 25], amp: 2, size: 1, body:
       `<path d="M92 34c8-6 12-16 10-24" stroke="${A.cream}" stroke-width="5" stroke-linecap="round" fill="none"/>
        <g class="legA" stroke="${A.cream}" stroke-width="6" stroke-linecap="round"><path d="M40 50 30 78M50 50l6 28M80 50l-8 28M88 50l8 28"/></g>
@@ -491,7 +448,7 @@ body {
     g.hf = .95 + r() * .1; // height variety
     g.phase = r() * 6.28; g.period = 3.4 + r() * 2.2; g.amp = g.sp.amp ?? 1.5 + r() * 1.5;
     g.nextBlink = performance.now() + 1000 + r() * 4000;
-    if (g.kind === 'dog') { g.runner = true; g.home = [g.x, g.s]; }
+    if (g.kind === 'dog') { g.runner = true; g.home = [g.x, g.s]; g.x = offEdge(1); }
     g.el.style.zIndex = Math.round(feetY(g.s) * 10);
     g.el.style.filter = `brightness(${fog(g.s).toFixed(2)})`;
     world.appendChild(g.el);
@@ -539,14 +496,17 @@ body {
     });
   };
 
-  const LAP = { rx: 236, s0: .86, s1: .2, speed: .95 }; // ellipse radius (x), depth centre and swing, rad/s
   const runDog = (g, t) => {
-    if (g.runStart == null) g.runStart = t;
-    const th = (t - g.runStart) * LAP.speed + Math.PI / 2 - Math.acos((g.home[0] - CX) / LAP.rx);
-    const x = CX + LAP.rx * Math.cos(th), s = LAP.s0 + LAP.s1 * Math.sin(th);
-    const dx = -Math.sin(th);
-    g.x = x; g.s = s;
-    g.flip = dx > 0 ? -1 : 1; // art faces left
+    const dt = g.lastT == null ? 0 : Math.min(.05, t - g.lastT);
+    g.lastT = t;
+    if (g.waitUntil) { // off-screen left: wait, then come back in from the right
+      if (performance.now() < g.waitUntil) return;
+      g.waitUntil = 0; g.x = offEdge(1);
+    }
+    g.x -= DASH.speed * dt;
+    if (g.x < offEdge(-1)) { g.waitUntil = performance.now() + rand(...DASH.pause); return; }
+    const x = g.x, s = g.s;
+    g.flip = 1; // art faces left
     g.el.style.zIndex = Math.round(feetY(s) * 10);
     const gallop = Math.sin(t * 15);
     g.legA.style.display = gallop > 0 ? '' : 'none'; g.legB.style.display = gallop > 0 ? 'none' : '';
@@ -590,7 +550,7 @@ body {
         const p = Math.min(1, p0);
         const k = a.k0 * (p < .25 ? 1 + .06 * Math.sin(p / .25 * Math.PI / 2) : 1.06 * (1 - Math.pow((p - .25) / .75, 2)));
         place(g, g.x, g.s, a.o0 * (1 - Math.max(0, p - .3) / .7), 0, 0, 1, Math.max(0, k));
-        if (p0 >= 1) { place(g, g.x, g.s, 0, 0, 0, 1, 0); g.anim = null; if (g.runner) { [g.x, g.s] = g.home; g.runStart = null; } }
+        if (p0 >= 1) { place(g, g.x, g.s, 0, 0, 0, 1, 0); g.anim = null; if (g.runner) { g.x = offEdge(1); g.waitUntil = 0; g.lastT = null; } }
       }
     }
     stepScene(now, dt, t);
@@ -604,108 +564,105 @@ body {
     front.animate([{ transform: 'none' }, { transform: 'translateY(-3px) scaleY(1.01)', offset: .35 }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });
   };
 
-  // ---------- Far-off scenes: karaoke venue (250) and a beach (250+), behind the crowd ----------
-  // Each prop pops up from its own base point with the same spring as the guests, one after another.
-  const backdrop = document.getElementById('backRoot');
+  // ---------- Scene extras: palm trees and string lights (250), fireworks (250+) ----------
+  // Palms pop up from their base with the same spring as the guests; the lights draw out from the centre.
+  const sides = document.getElementById('sides');
   const svg = (tag, attrs = {}, html = '') => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (html) e.innerHTML = html; return e; };
-  const sprite = (name, x, base, h, extra = '') => { // one of the four characters, standing with feet at (x, base), h tall
-    const sp = SPRITES[name], w = sp.w * h / sp.h;
-    return `<image href="assets/guest-${name}.png" x="${x - w / 2}" y="${base - h}" width="${w}" height="${h}" ${extra}/>`;
-  };
   const props = [];
   const prop = (tier, base, delay, html, fn) => {
     const outer = svg('g'); const inner = svg('g', {}, html);
-    outer.appendChild(inner); backdrop.appendChild(outer);
-    const p = { tier, base, delay, outer, inner, k: 0, v: 0, target: 0, at: 0, fn };
+    outer.appendChild(inner); sides.appendChild(outer);
+    const p = { tier, base, delay, outer, inner, k: 0, target: 0, start: 0, fn };
     props.push(p);
     return p;
   };
-
-  // Karaoke venue, far back on the right
-  const KX = 330, KB = 64;
-  prop(5, [KX, KB], 0, `
-    <rect x="${KX - 82}" y="${KB - 104}" width="164" height="104" rx="4" fill="#141c30"/>
-    <rect x="${KX - 86}" y="${KB - 4}" width="172" height="30" fill="#232b42"/><path d="M${KX - 86} ${KB - 4}h172" stroke="${A.cream}" stroke-width=".8" opacity=".6"/>
-    <ellipse cx="${KX}" cy="${KB - 30}" rx="70" ry="40" fill="#3a5fb0" opacity=".35" filter="url(#soft)"/>`);
-  const sign = prop(5, [KX, KB - 80], 90, `<text x="${KX}" y="${KB - 86}" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="13" font-style="italic" fill="#ffb3d1" filter="url(#neon)" letter-spacing="1">Karaoke</text>`,
-    (p, t) => p.inner.setAttribute('opacity', (Math.sin(t * 23) > .96 ? .5 : 1)));
-  const screen = prop(5, [KX, KB - 34], 160, `
-    <rect x="${KX - 34}" y="${KB - 76}" width="68" height="42" rx="2" fill="#1f4f9a" stroke="${A.cream}" stroke-width="1.2"/>
-    <rect x="${KX - 26}" y="${KB - 62}" width="52" height="4" rx="2" fill="${A.cream}" opacity=".45"/>
-    <rect class="wipe" x="${KX - 26}" y="${KB - 62}" width="0" height="4" rx="2" fill="#ffb3d1"/>
-    <rect x="${KX - 20}" y="${KB - 52}" width="40" height="4" rx="2" fill="${A.cream}" opacity=".45"/>`,
-    (p, t) => p.inner.querySelector('.wipe').setAttribute('width', (52 * ((t / 2.6) % 1)).toFixed(1))); // lyric wipe, karaoke-style
-  [[KX - 70, 0], [KX + 70, 1]].forEach(([x, i]) => prop(5, [x, KB], 200 + i * 60, `
-    <rect x="${x - 9}" y="${KB - 40}" width="18" height="40" rx="2" fill="${A.navy}"/>
-    <circle cx="${x}" cy="${KB - 29}" r="5" fill="#0d1a30" stroke="${A.cream}" stroke-width=".8"/><circle cx="${x}" cy="${KB - 12}" r="6.5" fill="#0d1a30" stroke="${A.cream}" stroke-width=".8"/>`,
-    (p, t) => p.inner.setAttribute('transform', `translate(${x} ${KB}) scale(${1 + Math.max(0, Math.sin(t * Math.PI * 4)) * .04}) translate(${-x} ${-KB})`)));
-  const singer = prop(5, [KX, KB], 320, sprite('girl', KX + 2, KB, 62) +
-    `<path d="M${KX - 8} ${KB}V${KB - 40}" stroke="${A.cream}" stroke-width="1"/><ellipse cx="${KX - 8}" cy="${KB - 42}" rx="2.2" ry="3" fill="${A.cream}"/>`,
-    (p, t) => p.inner.setAttribute('transform', `rotate(${Math.sin(t * 2.4) * 3} ${KX} ${KB})`));
-  [['boy', KX - 44, 400, 0], ['woman', KX + 44, 470, 1.6]].forEach(([n, x, d, ph]) => prop(5, [x, KB], d, sprite(n, x, KB, 56),
-    (p, t) => p.inner.setAttribute('transform', `translate(0 ${-Math.abs(Math.sin(t * Math.PI * 2 + ph)) * 3}) rotate(${Math.sin(t * Math.PI * 2 + ph) * 4} ${x} ${KB})`)));
-  // Music notes drifting up from the singer
-  const notes = prop(5, [KX, KB - 60], 600, '', (p, t, dt) => {
-    p.acc = (p.acc || 0) + dt;
-    if (p.acc > .7) {
-      p.acc = 0;
-      const n = svg('text', { x: KX + rand(-14, 14), y: KB - 64, 'font-size': rand(8, 11), fill: A.cream, 'font-family': 'serif' }, Math.random() < .5 ? '♪' : '♫');
-      n.born = t; p.inner.appendChild(n);
-    }
-    [...p.inner.children].forEach(n => {
-      const a = t - n.born;
-      if (a > 2.4) return n.remove();
-      n.setAttribute('transform', `translate(${Math.sin(a * 3) * 4} ${-a * 16})`);
-      n.setAttribute('opacity', (Math.min(1, a * 3) * (1 - a / 2.4)).toFixed(2));
-    });
-  });
-
-  // Beach, far back on the left
-  const BB = 66;
-  prop(6, [40, BB], 0, `
-    <rect x="-110" y="${BB - 22}" width="352" height="16" fill="#1a4f8f"/>
-    <g class="shimmer" stroke="${A.cream}" stroke-width=".8" opacity=".5"><path d="M-100 ${BB - 17}h14M-60 ${BB - 12}h18M-20 ${BB - 16}h12M20 ${BB - 11}h16M60 ${BB - 17}h14M100 ${BB - 13}h18M140 ${BB - 16}h12"/></g>
-    <g filter="url(#grain)"><path d="M-110 ${BB}c40-14 110-14 150-12s150-4 202 6V${BB + 30}H-110z" fill="#e3d2ad"/></g>`,
-    (p, t) => p.inner.querySelector('.shimmer').setAttribute('transform', `translate(${Math.sin(t * .8) * 6} 0)`));
-  const palm = (x, h, lean, delay) => prop(6, [x, BB - 6], delay, `
-    <path d="M${x} ${BB - 6}q${lean * .3} ${-h * .55} ${lean} ${-h}" stroke="#c9b28a" stroke-width="5" fill="none" stroke-linecap="round"/>
-    <path d="M${x} ${BB - 6}q${lean * .3} ${-h * .55} ${lean} ${-h}" stroke="${A.navy}" stroke-width="5" fill="none" stroke-dasharray="1.2 5" opacity=".6"/>
-    <g class="fronds" style="transform-origin:${x + lean}px ${BB - 6 - h}px">
-      ${[-150, -110, -60, -20, 25, 70].map((a, i) => `<path d="M${x + lean} ${BB - 6 - h}q${Math.cos(a * Math.PI / 180) * 16} ${Math.sin(a * Math.PI / 180) * 16 - 8} ${Math.cos(a * Math.PI / 180) * 30} ${Math.sin(a * Math.PI / 180) * 30 + 6}" stroke="${i % 2 ? A.blue : A.navy}" stroke-width="5" fill="none" stroke-linecap="round"/>`).join('')}
-      <circle cx="${x + lean - 2}" cy="${BB - 4 - h}" r="2.6" fill="#8a6d45"/><circle cx="${x + lean + 3}" cy="${BB - 3 - h}" r="2.6" fill="#8a6d45"/>
-    </g>`, (p, t) => p.inner.querySelector('.fronds').style.transform = `rotate(${Math.sin(t * 1.1 + x) * 4}deg)`);
-  palm(-46, 112, 14, 80); palm(-8, 82, -10, 160); palm(176, 96, 12, 240);
-  prop(6, [60, BB - 2], 300, `
-    <path d="M60 ${BB - 2}V${BB - 46}" stroke="${A.cream}" stroke-width="1.4"/>
-    <path d="M36 ${BB - 44}a24 14 0 0 1 48 0z" fill="${A.cream}"/><path d="M44 ${BB - 44}a16 13 0 0 1 8-11v11zM60 ${BB - 58}a24 14 0 0 1 8 0l-3 14h-2z" fill="${A.blue}"/><path d="M68 ${BB - 44}l1-11a16 13 0 0 1 7 11z" fill="${A.blue}"/>`);
-  // People lying on towels: the same four characters, rotated flat
-  const lying = (name, x, y, len, delay, color) => {
-    const sp = SPRITES[name], w = sp.w * len / sp.h;
-    return prop(6, [x, y], delay, `
-      <rect x="${x - len / 2 - 4}" y="${y - 6}" width="${len + 8}" height="9" rx="1.5" fill="${color}"/>
-      <path d="M${x - len / 2} ${y - 6}v9M${x - len / 2 + 6} ${y - 6}v9M${x + len / 2 - 6} ${y - 6}v9M${x + len / 2} ${y - 6}v9" stroke="${A.cream}" stroke-width="1.2" opacity=".7"/>
-      <g class="sleeper"><image href="assets/guest-${name}.png" x="${-w / 2}" y="${-len / 2}" width="${w}" height="${len}" transform="translate(${x} ${y - 4}) rotate(-90)"/></g>`,
-      (p, t) => p.inner.querySelector('.sleeper').setAttribute('transform', `translate(0 ${-Math.max(0, Math.sin(t * 1.2 + x)) * .6})`));
+  // World coordinates; at the 175+ zoom (.64) the visible width runs from about -110 to 510
+  const palm = (x, base, h, lean, delay) => {
+    const tx = x + lean, ty = base - h, w = 4 + h * .03, f = h * .26;
+    const fronds = [-160, -125, -85, -45, -10, 25].map((a, i) => {
+      const r = a * Math.PI / 180;
+      return `<path d="M${tx} ${ty}q${Math.cos(r) * f * .5} ${Math.sin(r) * f * .5 - f * .3} ${Math.cos(r) * f} ${Math.sin(r) * f + f * .2}" stroke="${i % 2 ? A.blue : A.navy}" stroke-width="${w * 1.1}" fill="none" stroke-linecap="round"/>`;
+    }).join('');
+    prop(5, [x, base], delay, `
+      <g filter="url(#grain)"><path d="M${x} ${base}q${lean * .2} ${-h * .55} ${lean} ${-h}" stroke="#c9b28a" stroke-width="${w}" fill="none" stroke-linecap="round"/></g>
+      <path d="M${x} ${base}q${lean * .2} ${-h * .55} ${lean} ${-h}" stroke="${A.navy}" stroke-width="${w}" fill="none" stroke-dasharray="1.6 ${w * 1.2}" opacity=".55"/>
+      <g class="fronds" style="transform-origin:${tx}px ${ty}px">${fronds}
+        <circle cx="${tx - w * .5}" cy="${ty + w * .6}" r="${w * .55}" fill="#8a6d45"/><circle cx="${tx + w * .6}" cy="${ty + w * .8}" r="${w * .55}" fill="#8a6d45"/></g>`,
+      (p, t) => p.inner.querySelector('.fronds').style.transform = `rotate(${Math.sin(t * 1.1 + x) * 3.5}deg)`);
   };
-  lying('woman', -30, BB - 2, 44, 380, '#b8473f'); lying('man', 34, BB + 2, 48, 460, A.blue); lying('girl', 112, BB, 40, 540, '#d9a24a');
-  // A beach ball that never quite lands
-  prop(6, [74, BB - 4], 640, `<g class="ball"><circle cx="74" cy="${BB - 10}" r="5.5" fill="${A.cream}"/><path d="M74 ${BB - 15.5}a5.5 5.5 0 0 1 5.5 5.5H74zM74 ${BB - 4.5}a5.5 5.5 0 0 1-5.5-5.5H74z" fill="${A.blue}"/></g>`,
-    (p, t) => { const b = Math.abs(Math.sin(t * 2.2)); p.inner.querySelector('.ball').setAttribute('transform', `translate(${Math.sin(t * 1.1) * 10} ${-b * 26}) rotate(${t * 140} 74 ${BB - 10})`); });
+  palm(-104, 222, 270, 44, 0); palm(-64, 160, 170, 26, 120);
+  palm(506, 222, 270, -44, 60); palm(466, 160, 170, -26, 180);
+
+  // String lights in screen space, hung between the big palms' crowns over the crowd's heads
+  const garland = document.getElementById('garland');
+  const BULB_COLORS = ['#ffe7b0', '#faefdd', '#ffcf86', '#9fb6ff', '#ffb3a0'];
+  const strands = ['M201 252 Q118 304 36 268', 'M201 252 Q284 304 366 268', 'M201 236 Q110 270 24 240', 'M201 236 Q292 270 378 240'].map((d, si) => {
+    const g = svg('g'); const path = svg('path', { d, fill: 'none', stroke: '#5d5a55', 'stroke-width': .8 });
+    g.appendChild(path); garland.appendChild(g);
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+    const bulbs = [];
+    const n = si < 2 ? 9 : 8;
+    for (let i = 1; i <= n; i++) {
+      const pt = path.getPointAtLength(len * i / (n + .6));
+      const color = BULB_COLORS[(i + si) % BULB_COLORS.length];
+      const b = svg('g', { transform: `translate(${pt.x} ${pt.y + 3})` },
+        `<g style="opacity:0; transform-origin: 0 -4px"><circle r="6" fill="${color}" filter="url(#bulbGlow)" opacity=".7"/><rect x="-1" y="-4" width="2" height="2" fill="#4a4844"/><ellipse rx="2.2" ry="2.8" fill="${color}"/></g>`);
+      g.appendChild(b);
+      bulbs.push({ el: b.firstChild, halo: b.firstChild.firstChild, phase: Math.random() * 6.28, speed: rand(1.5, 3.5) });
+    }
+    return { path, len, bulbs, delay: si < 2 ? 0 : 220 };
+  });
+  let lightsOn = false;
+  const setLights = on => {
+    if (on === lightsOn) return;
+    lightsOn = on;
+    strands.forEach(st => {
+      st.path.getAnimations().forEach(a => a.cancel());
+      st.path.animate([{ strokeDashoffset: getComputedStyle(st.path).strokeDashoffset }, { strokeDashoffset: on ? 0 : st.len }],
+        { duration: motionOn() ? (on ? 700 : 400) : 1, delay: motionOn() && on ? 350 + st.delay : 0, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
+      st.bulbs.forEach((b, i) => {
+        b.el.getAnimations().forEach(a => a.cancel());
+        b.el.animate(on
+          ? [{ opacity: 0, transform: 'scale(0)' }, { opacity: 1, transform: 'scale(1.35)', offset: .6 }, { opacity: 1, transform: 'scale(1)' }]
+          : [{ opacity: getComputedStyle(b.el).opacity }, { opacity: 0 }],
+          { duration: motionOn() ? (on ? 360 : 200) : 1, delay: motionOn() ? (on ? 450 + st.delay + i * 45 : (8 - i) * 20) : 0, fill: 'forwards', easing: 'ease-out' });
+      });
+    });
+  };
+
+  // Fireworks (250+): rockets rise from behind the crowd and burst into falling sparks
+  const sky = document.getElementById('sky').getContext('2d');
+  sky.scale(2, 2);
+  const FIRE = [['#ffe7b0', '#ffcf86'], ['#9fb6ff', '#faefdd'], ['#ffb3d1', '#ffe7b0'], ['#faefdd', '#4f6bff']];
+  const rockets = [], sparks = [];
+  let fireworks = false, nextLaunch = 0;
+  const launch = () => rockets.push({ x: rand(60, 342), y: 440, vy: -rand(320, 380), top: rand(90, 220), colors: FIRE[Math.floor(rand(0, FIRE.length))] });
+  const burst = r => {
+    const n = Math.floor(rand(56, 80)), v0 = rand(120, 170);
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2 + rand(-.05, .05), v = v0 * rand(.85, 1.05);
+      sparks.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(1.1, 1.6), age: 0, color: r.colors[i % 2], tw: Math.random() < .3 });
+    }
+  };
 
   const setDecor = next => {
-    const now = performance.now();
     props.forEach(p => {
       const on = next >= p.tier ? 1 : 0;
       if (on === p.target) return;
-      p.target = on; p.at = now + (on ? 150 + p.delay : 0); p.from = p.k; p.start = p.at;
+      p.target = on; p.from = p.k; p.start = performance.now() + (on ? 150 + p.delay : 0);
       if (!motionOn()) { p.k = on; p.start = 0; }
     });
+    setLights(next >= 5);
+    const fw = next >= 6;
+    if (fw && !fireworks && motionOn()) { [0, 260, 520].forEach(d => setTimeout(() => fireworks && launch(), 300 + d)); nextLaunch = performance.now() + 1500; }
+    fireworks = fw;
   };
 
   const stepScene = (now, dt, t) => {
     const on = motionOn() && idleToggle.checked;
     props.forEach(p => {
-      if (motionOn() && now >= p.start && p.start) {
+      if (motionOn() && p.start && now >= p.start) {
         const q = Math.min(1, (now - p.start) / (p.target ? POP_IN : POP_OUT));
         p.k = p.target ? p.from + (1 - p.from) * spring(q) : p.from * (1 - q * q);
         if (q >= 1) p.start = 0;
@@ -715,6 +672,35 @@ body {
       p.outer.setAttribute('opacity', Math.min(1, p.k * 3).toFixed(2));
       if (p.fn && p.k > .01 && on) p.fn(p, t, dt);
     });
+    if (lightsOn && on) strands.forEach(st => st.bulbs.forEach(b => b.halo.setAttribute('opacity', (.45 + .4 * Math.sin(t * b.speed + b.phase)).toFixed(2))));
+
+    // Fireworks
+    if (fireworks && motionOn() && now > nextLaunch) { launch(); nextLaunch = now + rand(700, 1300); }
+    sky.clearRect(0, 0, 402, 452);
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i];
+      r.y += r.vy * dt; r.vy *= Math.exp(-.6 * dt);
+      sky.fillStyle = 'rgba(255,240,215,.9)';
+      sky.beginPath(); sky.arc(r.x, r.y, 1.3, 0, 6.28); sky.fill();
+      sky.fillStyle = 'rgba(255,240,215,.25)';
+      sky.fillRect(r.x - .5, r.y, 1, 16);
+      if (r.y <= r.top) { burst(r); rockets.splice(i, 1); }
+    }
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const p = sparks[i];
+      p.age += dt;
+      if (p.age > p.life) { sparks.splice(i, 1); continue; }
+      const drag = Math.exp(-1.8 * dt);
+      p.vx *= drag; p.vy = p.vy * drag + 45 * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const fade = 1 - p.age / p.life;
+      sky.globalAlpha = p.tw ? fade * (.4 + .6 * Math.abs(Math.sin(p.age * 30))) : fade;
+      sky.fillStyle = p.color;
+      sky.beginPath(); sky.arc(p.x, p.y, 1.4, 0, 6.28); sky.fill();
+      sky.globalAlpha = fade * .25;
+      sky.beginPath(); sky.arc(p.x, p.y, 3.6, 0, 6.28); sky.fill();
+      sky.globalAlpha = 1;
+    }
   };
 
   // ---------- Tier changes ----------
