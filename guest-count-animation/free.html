@@ -262,7 +262,7 @@ body {
         <dt>まばたき</dt><dd>150ms, 2.4–5.5s 間隔, 20% で2回</dd>
         <dt>175人</dt><dd>+12人がさらに両脇へ, ズーム .64</dd>
         <dt>犬</dt><dd>群衆の前を右→左へ 170px/s, 画面外で 0.6–1.8s 待って右から再登場</dd>
-        <dt>ヤシの木</dt><dd>250人, 両脇に2本ずつ, 足元からポップ + 葉が揺れる</dd>
+        <dt>ヤシの木</dt><dd>250人, 左右に1本ずつ, 足元からポップ + 葉が揺れる</dd>
         <dt>電飾</dt><dd>ヤシの間に4本, 中央から描画 700ms, 電球は 45ms 間隔で点灯</dd>
         <dt>花火</dt><dd>250人以上, 最初に3発, その後 0.7–1.3s ごと, 56–80 粒</dd>
       </dl>
@@ -590,8 +590,7 @@ body {
         <circle cx="${tx - w * .5}" cy="${ty + w * .6}" r="${w * .55}" fill="#8a6d45"/><circle cx="${tx + w * .6}" cy="${ty + w * .8}" r="${w * .55}" fill="#8a6d45"/></g>`,
       (p, t) => p.inner.querySelector('.fronds').style.transform = `rotate(${Math.sin(t * 1.1 + x) * 3.5}deg)`);
   };
-  palm(-104, 222, 270, 44, 0); palm(-64, 160, 170, 26, 120);
-  palm(506, 222, 270, -44, 60); palm(466, 160, 170, -26, 180);
+  palm(-104, 222, 270, 44, 0); palm(506, 222, 270, -44, 60);
 
   // String lights in screen space, hung between the big palms' crowns over the crowd's heads
   const garland = document.getElementById('garland');
