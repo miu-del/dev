@@ -109,14 +109,14 @@ body {
 /* String lights ride with the stage; the svg keeps the full-screen coordinates it was drawn in */
 .deco { position: absolute; left: 0; top: -214px; width: 402px; height: 452px; pointer-events: none; z-index: 1; overflow: visible; }
 
-/* Settings card, anchored above the note and the Create button: guests (count, price, slider) and photos per person */
-.picker { position: absolute; left: 16px; right: 16px; bottom: 166px; height: 140px; border-radius: 16px; background: #1c1c1e; z-index: 2; }
+/* Bottom-anchored stack, top to bottom: guest card (count, price, slider), its note, photos per person, dots, Create.
+   Photos per person sits outside the card because it does not change the price. */
+.picker { position: absolute; left: 16px; right: 16px; bottom: 230px; height: 86px; border-radius: 16px; background: #1c1c1e; z-index: 2; }
 .picker-head { position: absolute; left: 17px; right: 17px; top: 14px; display: flex; justify-content: space-between; font: 600 14px/18px var(--font-ui); font-variant-numeric: tabular-nums; }
 .picker-head span { display: inline-block; }
 .track { position: absolute; left: 14px; right: 16px; top: 40px; height: 32px; cursor: pointer; touch-action: none; outline: none; }
-.picker .rule { position: absolute; left: 17px; right: 17px; top: 86px; height: 1px; background: #2c2c31; }
-.shots { position: absolute; left: 17px; right: 10px; top: 96px; height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.shots-label { margin: 0; font: 500 13px/1.2 var(--font-ui); color: #c8c8cf; }
+.shots { position: absolute; left: 18px; right: 16px; bottom: 134px; height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 12px; z-index: 2; }
+.shots-label { margin: 0; font: 400 16px/1.2 var(--font-display); font-variation-settings: "opsz" 36; color: #ececf0; }
 .track::before { content: ""; position: absolute; left: 0; right: 0; top: 13.5px; height: 5px; border-radius: 3px; background: #2c2c30; }
 .tick { position: absolute; top: 25px; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: #4a4a50; transition: background-color .2s; }
 .tick.passed { background: #6a6a74; }
@@ -127,8 +127,8 @@ body {
 .track.dragging .thumb { transform: scale(1.08); }
 .track:focus-visible .thumb { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-.note { position: absolute; left: 32px; right: 26px; bottom: 126px; margin: 0; font: 400 12px/17px var(--font-ui); color: #7b7b82; z-index: 2; }
-.choices { flex: none; width: 200px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; border-radius: 10px; background: #111113; }
+.note { position: absolute; left: 32px; right: 26px; bottom: 186px; margin: 0; font: 400 12px/17px var(--font-ui); color: #7b7b82; z-index: 2; }
+.choices { flex: none; width: 206px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; border-radius: 10px; background: #1c1c1e; }
 .choice {
   height: 30px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #a9a9b0;
   font: 600 12.5px/1 var(--font-ui); letter-spacing: .01em; cursor: pointer;
@@ -238,16 +238,15 @@ body {
         <div class="track" id="track" role="slider" tabindex="0" aria-label="Number of guests" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" aria-valuetext="10人まで、無料">
           <div class="thumb" id="thumb"></div>
         </div>
-        <div class="rule"></div>
-        <div class="shots">
-          <p class="shots-label" id="shotsLabel">Photos per person</p>
-          <div class="choices" role="radiogroup" aria-labelledby="shotsLabel">
-            <button class="choice" type="button" role="radio" aria-checked="true"><span>Up to 15</span></button>
-            <button class="choice" type="button" role="radio" aria-checked="false"><span>Unlimited</span></button>
-          </div>
-        </div>
       </div>
       <p class="note">You can upgrade at any time. Guests can join without downloading the app by scanning QR code or open a link.</p>
+      <div class="shots">
+        <p class="shots-label" id="shotsLabel">Photos per person</p>
+        <div class="choices" role="radiogroup" aria-labelledby="shotsLabel">
+          <button class="choice" type="button" role="radio" aria-checked="true"><span>Up to 15</span></button>
+          <button class="choice" type="button" role="radio" aria-checked="false"><span>Unlimited</span></button>
+        </div>
+      </div>
       <div class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div>
       <button class="next" type="button">Create</button>
       <div class="home" aria-hidden="true"></div>
@@ -351,7 +350,7 @@ body {
     // Everything below the illustration is anchored to the bottom; the illustration takes what is left,
     // centred, scaled down only when it has to.
     const top = H < 760 ? 182 : 214;
-    const bottom = H - 166 - 140 - 8; // card top, less a gap
+    const bottom = H - 230 - 86 - 8; // card top, less a gap
     const f = Math.min(1, (bottom - top) / 230);
     const y = top + Math.max(0, (bottom - top - 230 * f) / 2);
     stageEl.style.top = y + 'px';
