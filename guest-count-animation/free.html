@@ -75,8 +75,6 @@ body {
 /* Crowd stage: the camera (.world) scales around the front group's feet to "zoom out" */
 .stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; }
 .world { position: absolute; inset: 0; transform-origin: 201px 222px; }
-/* Palm trees stand behind every guest */
-.sides { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 1; }
 /* Fireworks burst behind the title and the crowd */
 #sky { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 0; }
 .front { position: absolute; left: 116px; top: 16px; width: 170.5px; height: 204px; transform-origin: 50% 100%; }
@@ -190,13 +188,12 @@ body {
 
       <div class="stage" id="stage" aria-hidden="true">
         <div class="world" id="world">
-          <svg class="sides" id="sides" viewBox="0 0 402 230"></svg>
           <div class="front" id="front"><div class="rig" id="rig"></div></div>
         </div>
       </div>
       <svg class="deco" id="deco" viewBox="0 0 402 452" aria-hidden="true">
         <defs>
-          <!-- Grain shared by the drawn dog and palm trees, close to the risograph texture of the original art -->
+          <!-- Grain on the drawn dog, close to the risograph texture of the original art -->
           <filter id="grain" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
             <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="7" result="noise"/>
             <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3.2 0 0 0 1.75" result="speck"/>
@@ -231,7 +228,7 @@ body {
   <aside class="rail">
     <div>
       <h1>Guest Count Free Crowd</h1>
-      <p class="lead">別案「自由な人たち」。人数を増やすたびに横へ広がり、カメラが引いていきます。175人で犬が群衆の前を駆け抜け、250人で両脇にヤシの木と頭上に電飾、250人以上で花火が上がります。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
+      <p class="lead">別案「自由な人たち」。人数を増やすたびに横へ広がり、カメラが引いていきます。175人で犬が群衆の前をうろつき、250人で頭上に電飾、250人以上で花火が上がります。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
     </div>
 
     <fieldset class="group">
@@ -261,9 +258,8 @@ body {
         <dt>首かしげ</dt><dd>±1.4–2.2° / 3.7–5.3s, 人ごとに位相ずらし</dd>
         <dt>まばたき</dt><dd>150ms, 2.4–5.5s 間隔, 20% で2回</dd>
         <dt>175人</dt><dd>+12人がさらに両脇へ, ズーム .64</dd>
-        <dt>犬</dt><dd>群衆の前を右→左へ 170px/s, 画面外で 0.6–1.8s 待って右から再登場</dd>
-        <dt>ヤシの木</dt><dd>250人, 左右に1本ずつ, 足元からポップ + 葉が揺れる</dd>
-        <dt>電飾</dt><dd>ヤシの間に4本, 中央から描画 700ms, 電球は 45ms 間隔で点灯</dd>
+        <dt>犬</dt><dd>群衆の前をうろつく: 歩き 40–85 / 小走り 120–170px/s を ±25% で揺らし, 55% の確率で 0.5–1.8s 立ち止まる</dd>
+        <dt>電飾</dt><dd>画面の外から4本, 中央から描画 700ms, 電球は 45ms 間隔で点灯</dd>
         <dt>花火</dt><dd>250人以上, 最初に3発, その後 0.7–1.3s ごと, 56–80 粒</dd>
       </dl>
     </div>
@@ -291,7 +287,7 @@ body {
     { label: '~ 50人', aria: '50人まで', price: 5000, zoom: .88, note: '+5人・少し引く' },
     { label: '~ 100人', aria: '100人まで', price: 10000, zoom: .76, note: '+12人・さらに引く' },
     { label: '~ 175人', aria: '175人まで', price: 20000, zoom: .64, note: '+12人と犬・さらに引く' },
-    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .64, note: 'ヤシの木と電飾' },
+    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .64, note: '頭上に電飾' },
     { label: '250人以上', aria: '250人以上', price: null, zoom: .64, note: '花火' }
   ];
   const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
@@ -324,17 +320,14 @@ body {
     [[-90, .9], [492, .9], [-70, .7], [472, .7], [-108, .78], [510, .78], [-30, .58], [432, .58], [52, .48], [350, .48], [-58, .52], [460, .52]],
     []
   ];
-  // 175: a dog joins too, and never stays put: it dashes across in front of the crowd, right to left, again and again
+  // 175: a dog joins too, and never stays put: it wanders about in front of the crowd
   const ANIMAL_TIER = 4, ANIMAL_SIZE = .72;
-  const ANIMAL_SLOTS = [[560, 1.05, 'dog']];
+  const ANIMAL_SLOTS = [[330, 1.06, 'dog']];
 
   // ---------- Camera ----------
   let cam = { z: 1, from: 1, to: 1, start: 0, dur: 1 };
   const zoomTo = z => { cam = { z: cam.z, from: cam.z, to: z, start: performance.now(), dur: 1100 }; };
   const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  // Just past the visible edge of the world at the current zoom (side: -1 left, 1 right)
-  const offEdge = side => CX + side * (CX / cam.z + 70);
-  const DASH = { speed: 170, pause: [600, 1800] }; // dog: world px/s, ms off-screen before the next pass
 
   // ---------- Front four: split into a body layer and four head layers (Live2D-style rig) ----------
   // Head ellipses and neck pivots in display px of the 170.5×204 cut-out
@@ -448,7 +441,7 @@ body {
     g.hf = .95 + r() * .1; // height variety
     g.phase = r() * 6.28; g.period = 3.4 + r() * 2.2; g.amp = g.sp.amp ?? 1.5 + r() * 1.5;
     g.nextBlink = performance.now() + 1000 + r() * 4000;
-    if (g.kind === 'dog') { g.runner = true; g.home = [g.x, g.s]; g.x = offEdge(1); }
+    if (g.kind === 'dog') { g.runner = true; g.home = [g.x, g.s]; }
     g.el.style.zIndex = Math.round(feetY(g.s) * 10);
     g.el.style.filter = `brightness(${fog(g.s).toFixed(2)})`;
     world.appendChild(g.el);
@@ -496,27 +489,45 @@ body {
     });
   };
 
-  const runDog = (g, t) => {
+  // Dog: picks a new spot in front of the crowd, gets there at a walk or a trot, sometimes stops to sniff,
+  // and varies its pace a little as it goes. It never leaves the visible width.
+  const wanderDog = (g, t) => {
     const dt = g.lastT == null ? 0 : Math.min(.05, t - g.lastT);
     g.lastT = t;
-    if (g.waitUntil) { // off-screen left: wait, then come back in from the right
-      if (performance.now() < g.waitUntil) return;
-      g.waitUntil = 0; g.x = offEdge(1);
+    const reach = CX / cam.z - 40, now = performance.now();
+    const pick = () => {
+      let tx = rand(CX - reach, CX + reach);
+      if (Math.abs(tx - g.x) < 70) tx = g.x + (tx < g.x ? -1 : 1) * rand(70, 160);
+      tx = Math.max(CX - reach, Math.min(CX + reach, tx));
+      g.plan = { mode: 'go', tx, ts: rand(1.02, 1.1), speed: Math.random() < .35 ? rand(120, 170) : rand(40, 85), seed: rand(0, 6.28) };
+    };
+    if (!g.plan) pick();
+    const P = g.plan;
+    let speed = 0;
+    if (P.mode === 'rest') { if (now > P.until) pick(); }
+    else {
+      speed = P.speed * (1 + .25 * Math.sin(t * 1.7 + P.seed)); // never quite steady
+      const dx = P.tx - g.x;
+      if (Math.abs(dx) < 4) g.plan = Math.random() < .55 ? { mode: 'rest', until: now + rand(500, 1800) } : null;
+      else {
+        g.x += Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
+        g.s += (P.ts - g.s) * (1 - Math.exp(-dt * 2));
+        g.flip = dx > 0 ? -1 : 1; // art faces left
+      }
     }
-    g.x -= DASH.speed * dt;
-    if (g.x < offEdge(-1)) { g.waitUntil = performance.now() + rand(...DASH.pause); return; }
-    const x = g.x, s = g.s;
-    g.flip = 1; // art faces left
-    g.el.style.zIndex = Math.round(feetY(s) * 10);
-    const gallop = Math.sin(t * 15);
-    g.legA.style.display = gallop > 0 ? '' : 'none'; g.legB.style.display = gallop > 0 ? 'none' : '';
-    place(g, x, s, 1, Math.abs(gallop) * 4 * s, -g.flip * gallop * 3);
-    g.head.style.transform = `rotate(${Math.sin(t * 15 + 1) * 4}deg)`;
+    g.el.style.zIndex = Math.round(feetY(g.s) * 10);
+    // Legs and bounce follow the pace; at rest the head dips as if sniffing
+    g.stride = (g.stride || 0) + dt * (speed ? 4 + speed / 11 : 0);
+    const gallop = Math.sin(g.stride);
+    const moving = speed > 0;
+    g.legA.style.display = !moving || gallop > 0 ? '' : 'none'; g.legB.style.display = !moving || gallop > 0 ? 'none' : '';
+    place(g, g.x, g.s, 1, moving ? Math.abs(gallop) * (1.5 + speed / 45) * g.s : 0, moving ? -g.flip * gallop * 3 : 0);
+    g.head.style.transform = `rotate(${moving ? Math.sin(g.stride + 1) * 4 : -8 + Math.sin(t * 6) * 3}deg)`;
   };
 
   const idleGuest = (g, now, t) => {
     const on = idleToggle.checked && motionOn();
-    if (g.runner && on) return runDog(g, t);
+    if (g.runner && on) return wanderDog(g, t);
     if (!on) { place(g, g.x, g.s, 1); g.head.style.transform = ''; return; }
     const w = Math.sin(t * Math.PI * 2 / g.period + g.phase);
     place(g, g.x, g.s, 1, 0, w * .6, 1 + .008 * Math.sin(t * Math.PI * 2 / 4.2 + g.phase));
@@ -550,7 +561,7 @@ body {
         const p = Math.min(1, p0);
         const k = a.k0 * (p < .25 ? 1 + .06 * Math.sin(p / .25 * Math.PI / 2) : 1.06 * (1 - Math.pow((p - .25) / .75, 2)));
         place(g, g.x, g.s, a.o0 * (1 - Math.max(0, p - .3) / .7), 0, 0, 1, Math.max(0, k));
-        if (p0 >= 1) { place(g, g.x, g.s, 0, 0, 0, 1, 0); g.anim = null; if (g.runner) { g.x = offEdge(1); g.waitUntil = 0; g.lastT = null; } }
+        if (p0 >= 1) { place(g, g.x, g.s, 0, 0, 0, 1, 0); g.anim = null; if (g.runner) { [g.x, g.s] = g.home; g.plan = null; g.lastT = null; } }
       }
     }
     stepScene(now, dt, t);
@@ -564,38 +575,13 @@ body {
     front.animate([{ transform: 'none' }, { transform: 'translateY(-3px) scaleY(1.01)', offset: .35 }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });
   };
 
-  // ---------- Scene extras: palm trees and string lights (250), fireworks (250+) ----------
-  // Palms pop up from their base with the same spring as the guests; the lights draw out from the centre.
-  const sides = document.getElementById('sides');
+  // ---------- Scene extras: string lights (250), fireworks (250+) ----------
   const svg = (tag, attrs = {}, html = '') => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (html) e.innerHTML = html; return e; };
-  const props = [];
-  const prop = (tier, base, delay, html, fn) => {
-    const outer = svg('g'); const inner = svg('g', {}, html);
-    outer.appendChild(inner); sides.appendChild(outer);
-    const p = { tier, base, delay, outer, inner, k: 0, target: 0, start: 0, fn };
-    props.push(p);
-    return p;
-  };
-  // World coordinates; at the 175+ zoom (.64) the visible width runs from about -110 to 510
-  const palm = (x, base, h, lean, delay) => {
-    const tx = x + lean, ty = base - h, w = 4 + h * .03, f = h * .26;
-    const fronds = [-160, -125, -85, -45, -10, 25].map((a, i) => {
-      const r = a * Math.PI / 180;
-      return `<path d="M${tx} ${ty}q${Math.cos(r) * f * .5} ${Math.sin(r) * f * .5 - f * .3} ${Math.cos(r) * f} ${Math.sin(r) * f + f * .2}" stroke="${i % 2 ? A.blue : A.navy}" stroke-width="${w * 1.1}" fill="none" stroke-linecap="round"/>`;
-    }).join('');
-    prop(5, [x, base], delay, `
-      <g filter="url(#grain)"><path d="M${x} ${base}q${lean * .2} ${-h * .55} ${lean} ${-h}" stroke="#c9b28a" stroke-width="${w}" fill="none" stroke-linecap="round"/></g>
-      <path d="M${x} ${base}q${lean * .2} ${-h * .55} ${lean} ${-h}" stroke="${A.navy}" stroke-width="${w}" fill="none" stroke-dasharray="1.6 ${w * 1.2}" opacity=".55"/>
-      <g class="fronds" style="transform-origin:${tx}px ${ty}px">${fronds}
-        <circle cx="${tx - w * .5}" cy="${ty + w * .6}" r="${w * .55}" fill="#8a6d45"/><circle cx="${tx + w * .6}" cy="${ty + w * .8}" r="${w * .55}" fill="#8a6d45"/></g>`,
-      (p, t) => p.inner.querySelector('.fronds').style.transform = `rotate(${Math.sin(t * 1.1 + x) * 3.5}deg)`);
-  };
-  palm(-104, 222, 270, 44, 0); palm(506, 222, 270, -44, 60);
 
-  // String lights in screen space, hung between the big palms' crowns over the crowd's heads
+  // String lights in screen space over the crowd's heads, running in from beyond both edges
   const garland = document.getElementById('garland');
   const BULB_COLORS = ['#ffe7b0', '#faefdd', '#ffcf86', '#9fb6ff', '#ffb3a0'];
-  const strands = ['M201 252 Q118 304 36 268', 'M201 252 Q284 304 366 268', 'M201 236 Q110 270 24 240', 'M201 236 Q292 270 378 240'].map((d, si) => {
+  const strands = ['M201 252 Q100 306 -12 262', 'M201 252 Q302 306 414 262', 'M201 236 Q96 272 -12 238', 'M201 236 Q306 272 414 238'].map((d, si) => {
     const g = svg('g'); const path = svg('path', { d, fill: 'none', stroke: '#5d5a55', 'stroke-width': .8 });
     g.appendChild(path); garland.appendChild(g);
     const len = path.getTotalLength();
@@ -646,12 +632,6 @@ body {
   };
 
   const setDecor = next => {
-    props.forEach(p => {
-      const on = next >= p.tier ? 1 : 0;
-      if (on === p.target) return;
-      p.target = on; p.from = p.k; p.start = performance.now() + (on ? 150 + p.delay : 0);
-      if (!motionOn()) { p.k = on; p.start = 0; }
-    });
     setLights(next >= 5);
     const fw = next >= 6;
     if (fw && !fireworks && motionOn()) { [0, 260, 520].forEach(d => setTimeout(() => fireworks && launch(), 300 + d)); nextLaunch = performance.now() + 1500; }
@@ -660,17 +640,6 @@ body {
 
   const stepScene = (now, dt, t) => {
     const on = motionOn() && idleToggle.checked;
-    props.forEach(p => {
-      if (motionOn() && p.start && now >= p.start) {
-        const q = Math.min(1, (now - p.start) / (p.target ? POP_IN : POP_OUT));
-        p.k = p.target ? p.from + (1 - p.from) * spring(q) : p.from * (1 - q * q);
-        if (q >= 1) p.start = 0;
-      }
-      const [bx, by] = p.base;
-      p.outer.setAttribute('transform', `translate(${bx} ${by}) scale(${Math.max(0, p.k).toFixed(3)}) translate(${-bx} ${-by})`);
-      p.outer.setAttribute('opacity', Math.min(1, p.k * 3).toFixed(2));
-      if (p.fn && p.k > .01 && on) p.fn(p, t, dt);
-    });
     if (lightsOn && on) strands.forEach(st => st.bulbs.forEach(b => b.halo.setAttribute('opacity', (.45 + .4 * Math.sin(t * b.speed + b.phase)).toFixed(2))));
 
     // Fireworks
