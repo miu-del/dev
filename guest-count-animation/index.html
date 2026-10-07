@@ -60,9 +60,9 @@ body {
   isolation: isolate;
   user-select: none;
 }
-.status { position: absolute; inset: 0 0 auto 0; height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 6px 34px 0 52px; box-sizing: border-box; font: 600 17px/1 var(--font-ui); letter-spacing: -.01em; }
+.status { position: absolute; inset: 0 0 auto 0; height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 6px 34px 0 52px; box-sizing: border-box; font: 600 17px/1 var(--font-ui); letter-spacing: -.01em; z-index: 4; }
 .status-icons { display: flex; gap: 6px; align-items: center; }
-.back { position: absolute; left: 22px; top: 56px; width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; color: #fff; cursor: pointer; border-radius: 20px; }
+.back { position: absolute; left: 22px; top: 56px; width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; color: #fff; cursor: pointer; border-radius: 20px; z-index: 4; }
 .back:focus-visible { outline: 2px solid var(--accent); }
 .title {
   position: absolute; left: 0; right: 0; top: 104px; margin: 0;
@@ -71,16 +71,38 @@ body {
 }
 .subtitle { position: absolute; left: 40px; right: 40px; top: 175px; margin: 0; text-align: center; font: 400 12.5px/17px var(--font-ui); color: #c8c8cf; letter-spacing: .01em; z-index: 2; }
 
-/* Crowd stage: the original four stay put; extra guests are absolutely positioned and driven by JS */
-.stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; }
-.front {
-  position: absolute; left: 116px; top: 16px; width: 170.5px; height: 204px;
-  background: url(assets/guests-front.png) center / 100% 100% no-repeat;
-  transform-origin: 50% 100%;
+/* Party layer (behind everything in the top half): spotlight beams, floor glow, mirror-ball reflections */
+.party { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 0; overflow: hidden; }
+.glow { position: absolute; left: 21px; top: 396px; width: 360px; height: 80px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(closest-side, rgba(255,232,190,.30), rgba(255,232,190,.08) 60%, transparent); }
+.glow.blue { background: radial-gradient(closest-side, rgba(110,140,255,.26), rgba(110,140,255,.06) 60%, transparent); left: -40px; width: 482px; top: 380px; height: 110px; }
+.beam {
+  position: absolute; top: -20px; width: 180px; height: 480px; margin-left: -90px; opacity: 0;
+  transform-origin: 50% 0;
+  clip-path: polygon(47% 0, 53% 0, 100% 100%, 0 100%);
+  /* faint where it crosses the title, strongest where it lands on the crowd */
+  background: linear-gradient(180deg, rgba(255,244,222,.08), rgba(255,244,222,.12) 32%, rgba(255,244,222,.3) 62%, rgba(255,244,222,.12) 86%, rgba(255,244,222,0));
+  filter: blur(8px); mix-blend-mode: screen;
 }
+.beam.blue { background: linear-gradient(180deg, rgba(120,150,255,.08), rgba(120,150,255,.14) 32%, rgba(120,150,255,.34) 62%, rgba(120,150,255,.12) 86%, rgba(120,150,255,0)); }
+#bgfx { position: absolute; inset: 0; width: 402px; height: 452px; }
+
+/* Crowd stage: the camera (.world) scales around the front group's feet to "zoom out" */
+.stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; }
+.world { position: absolute; inset: 0; transform-origin: 201px 222px; }
+.front { position: absolute; left: 116px; top: 16px; width: 170.5px; height: 204px; transform-origin: 50% 100%; }
+.rig { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.part { position: absolute; inset: 0; background: url(assets/guests-front.png) 0 0 / 170.5px 204px no-repeat; }
+.front-body { transform-origin: 50% 100%; }
+.lid { position: absolute; width: 3.4px; height: 3.4px; margin: -1.7px 0 0 -1.7px; border-radius: 50%; opacity: 0;
+  background: linear-gradient(var(--skin) 0 46%, #2a2420 46% 64%, var(--skin) 64%); }
 .guest { position: absolute; left: 0; top: 0; width: 60px; height: 200px; transform-origin: 50% 100%; will-change: transform, opacity; opacity: 0; }
 .guest svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .whistle { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+/* Decorations hung above the crowd, and the confetti canvas on top */
+.deco { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 1; overflow: visible; }
+#fx { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 3; }
 
 /* Slider card */
 .picker { position: absolute; left: 16px; right: 16px; top: 453px; height: 86px; border-radius: 16px; background: #1c1c1e; z-index: 2; }
@@ -146,7 +168,7 @@ body {
 .tiers dt, .tiers dd { margin: 0; }
 .tiers .n { color: var(--ink); font-weight: 500; }
 .tiers .p { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
-.tiers .g { color: var(--ink-dim); font-family: var(--font-mono); font-size: 12px; text-align: right; }
+.tiers .g { color: var(--ink-dim); font-size: 12px; text-align: right; }
 .spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
 .spec dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
 .spec dt { color: var(--ink-dim); }
@@ -170,6 +192,16 @@ body {
 <div class="layout">
   <div class="phone-slot" id="phoneSlot">
     <div class="phone" id="phone">
+      <div class="party" id="party" aria-hidden="true">
+        <div class="glow" id="glow"></div>
+        <div class="glow blue" id="glowBlue"></div>
+        <div class="beam" data-set="a" style="left: 26px"></div>
+        <div class="beam" data-set="a" style="left: 376px"></div>
+        <div class="beam blue" data-set="b" style="left: 128px"></div>
+        <div class="beam blue" data-set="b" style="left: 274px"></div>
+        <canvas id="bgfx" width="804" height="904"></canvas>
+      </div>
+
       <div class="status" aria-hidden="true">
         <span>9:41</span>
         <span class="status-icons">
@@ -185,9 +217,31 @@ body {
       <p class="subtitle">Make sure all guests have a chance to take the most amazing photo from your event.</p>
 
       <div class="stage" id="stage" aria-hidden="true">
-        <svg class="whistle" id="whistle" viewBox="0 0 402 230" preserveAspectRatio="none"></svg>
-        <div class="front" id="front"></div>
+        <div class="world" id="world">
+          <svg class="whistle" id="whistle" viewBox="0 0 402 230" preserveAspectRatio="none"></svg>
+          <div class="front" id="front"><div class="rig" id="rig"></div></div>
+        </div>
       </div>
+      <svg class="deco" id="deco" viewBox="0 0 402 452" aria-hidden="true">
+        <defs>
+          <radialGradient id="ballShade" cx="38%" cy="32%" r="75%">
+            <stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#b9bcc8"/><stop offset="1" stop-color="#3a3d4a"/>
+          </radialGradient>
+          <clipPath id="ballClip"><circle cx="0" cy="0" r="11"/></clipPath>
+          <filter id="bulbGlow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.6"/></filter>
+        </defs>
+        <g id="garland"></g>
+        <g id="ball" opacity="0">
+          <line id="ballString" x1="201" y1="226" x2="201" y2="226" stroke="#c9c2b2" stroke-width=".7"/>
+          <g id="ballBody" transform="translate(201 246) scale(0)">
+            <circle r="11" fill="url(#ballShade)"/>
+            <g clip-path="url(#ballClip)"><g id="facets"></g></g>
+            <circle cx="-4" cy="-4.5" r="2.4" fill="#fff" opacity=".8"/>
+            <path id="glint" d="M0-7 1.2-1.2 7 0 1.2 1.2 0 7-1.2 1.2-7 0-1.2-1.2z" fill="#fff" transform="translate(5 -6) scale(0)"/>
+          </g>
+        </g>
+      </svg>
+      <canvas id="fx" width="804" height="904" aria-hidden="true"></canvas>
 
       <div class="picker">
         <div class="picker-head" aria-hidden="true"><span id="countLabel">~ 10人</span><span id="priceLabel">+ ¥0</span></div>
@@ -211,7 +265,7 @@ body {
   <aside class="rail">
     <div>
       <h1>Guest Count Gathering</h1>
-      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。スライダーで人数を上げると、ピクミンの笛のように奥や画面の端からゲストが走って集まってきます。下げると走り去ります。</p>
+      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。100人まではゲストが走って集まり、後半はカメラが引いていきます。175人からは人ではなく、スポットライト・電飾・クラッカーで会場が盛り上がっていきます。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
     </div>
 
     <fieldset class="group">
@@ -221,10 +275,11 @@ body {
         <button class="btn" type="button" id="demo">自動デモ</button>
       </div>
       <label class="check"><input type="checkbox" id="ring" checked> 笛のリング（足元の波紋）</label>
+      <label class="check"><input type="checkbox" id="idle" checked> 待機アニメーション（呼吸・まばたき）</label>
     </fieldset>
 
     <div class="group">
-      <span class="label">段階と追加される人数</span>
+      <span class="label">段階ごとの変化</span>
       <dl class="tiers" id="tiers"></dl>
     </div>
 
@@ -232,13 +287,17 @@ body {
       <div class="group"><span class="label">タイミング（実装メモ）</span></div>
       <dl>
         <dt>到着の時差</dt><dd>1人あたり 70ms + ランダム 0–90ms</dd>
-        <dt>走る時間</dt><dd>距離に比例 650–1250ms, ease-out</dd>
-        <dt>走りの上下動</dt><dd>3.4Hz, 振幅 7px × 奥行き</dd>
-        <dt>前傾</dt><dd>進行方向へ 7° ± 揺れ 4°</dd>
-        <dt>到着時</dt><dd>小ジャンプ 9px + 着地のつぶれ / 380ms</dd>
-        <dt>退場</dt><dd>近い方の端へ 520–760ms, ease-in</dd>
-        <dt>笛のリング</dt><dd>720ms expo-out（増えるときのみ）</dd>
-        <dt>奥行き表現</dt><dd>遠いほど小さく・暗く（明度 1 → .55）</dd>
+        <dt>走る時間</dt><dd>距離に比例 650–1300ms, ease-out</dd>
+        <dt>カメラのズーム</dt><dd>1 → .88 → .76 → .72 / 1100ms ease-in-out</dd>
+        <dt>ズームの支点</dt><dd>手前4人の足元（中央）</dd>
+        <dt>呼吸</dt><dd>scaleY 1.007 / 4.2s（体は足元基点）</dd>
+        <dt>首かしげ</dt><dd>±1.4–2.2° / 3.7–5.3s, 人ごとに位相ずらし</dd>
+        <dt>まばたき</dt><dd>150ms, 2.4–5.5s 間隔, 20% で2回</dd>
+        <dt>ノリ（175人〜）</dt><dd>120BPM で上下 2–4px + うなずき</dd>
+        <dt>スポットライト</dt><dd>点灯フリッカー 520ms, 首振り ±9° / 5.5s</dd>
+        <dt>電飾</dt><dd>中央から描画 700ms, 電球は 45ms 間隔で点灯</dd>
+        <dt>クラッカー</dt><dd>左右下から 70 枚ずつ, 重力 760px/s²</dd>
+        <dt>ミラーボール</dt><dd>降下 700ms + 反射光 30 粒が横に流れる</dd>
       </dl>
     </div>
   </aside>
@@ -248,25 +307,30 @@ body {
 (() => {
   const phone = document.getElementById('phone');
   const slot = document.getElementById('phoneSlot');
-  const stage = document.getElementById('stage');
+  const world = document.getElementById('world');
   const front = document.getElementById('front');
+  const rig = document.getElementById('rig');
   const whistle = document.getElementById('whistle');
   const track = document.getElementById('track');
   const thumb = document.getElementById('thumb');
   const countLabel = document.getElementById('countLabel');
   const priceLabel = document.getElementById('priceLabel');
+  const idleToggle = document.getElementById('idle');
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const NS = 'http://www.w3.org/2000/svg';
 
   const TIERS = [
-    { label: '~ 10人', aria: '10人まで', price: 0 },
-    { label: '~ 25人', aria: '25人まで', price: 2500 },
-    { label: '~ 50人', aria: '50人まで', price: 5000 },
-    { label: '~ 100人', aria: '100人まで', price: 10000 },
-    { label: '~ 175人', aria: '175人まで', price: 20000 },
-    { label: '~ 250人', aria: '250人まで', price: 30000 },
-    { label: '250人以上', aria: '250人以上', price: null }
+    { label: '~ 10人', aria: '10人まで', price: 0, zoom: 1, groove: 0, note: '4人のみ' },
+    { label: '~ 25人', aria: '25人まで', price: 2500, zoom: 1, groove: 0, note: '+2人' },
+    { label: '~ 50人', aria: '50人まで', price: 5000, zoom: .88, groove: 0, note: '+5人・少し引く' },
+    { label: '~ 100人', aria: '100人まで', price: 10000, zoom: .76, groove: 0, note: '+12人・さらに引く' },
+    { label: '~ 175人', aria: '175人まで', price: 20000, zoom: .72, groove: .35, note: 'スポットライト' },
+    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .72, groove: .7, note: '電飾＋クラッカー' },
+    { label: '250人以上', aria: '250人以上', price: null, zoom: .72, groove: 1, note: 'ミラーボール＋紙吹雪' }
   ];
   const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const motionOn = () => !reduceMotion.matches;
 
   // Fit the 402×874 phone into the viewport
   const fit = () => {
@@ -279,31 +343,65 @@ body {
   addEventListener('resize', fit); fit();
 
   // ---------- Depth model ----------
-  // Stage-local coordinates. The front four stand with their feet on FRONT_Y; guests further back
-  // stand higher (towards HORIZON), smaller and dimmer.
-  const FRONT_Y = 220, HORIZON = 76, BASE_H = 190;
+  // World coordinates (stage-local before the camera zoom). The front four stand with their feet on FRONT_Y;
+  // guests further back stand higher (towards HORIZON), smaller and dimmer.
+  const FRONT_Y = 220, HORIZON = 76, BASE_H = 190, CX = 201;
   const feetY = s => HORIZON + (FRONT_Y - HORIZON) * s;
   const fog = s => 0.55 + 0.45 * Math.min(1, (s - 0.25) / 0.65);
 
-  // Slots: [x centre, depth scale]. Each tier adds its own list on top of the previous ones.
+  // Slots: [x centre, depth scale]. People only join up to 100; the 100 tier fills the space the zoom-out reveals.
   const SLOTS = [
     [],
     [[92, .9], [312, .9]],
-    [[50, .78], [354, .78], [207, .66]],
-    [[130, .62], [278, .62], [16, .68], [388, .68]],
-    [[168, .54], [244, .54], [76, .6], [330, .6], [104, .5]],
-    [[300, .48], [38, .52], [366, .52], [188, .45], [224, .45], [142, .44]],
-    [[88, .41], [264, .4], [320, .4], [12, .44], [390, .44], [160, .38], [236, .38], [58, .38]]
+    [[48, .78], [356, .78], [207, .66], [130, .62], [278, .62]],
+    [[-12, .9], [414, .9], [14, .7], [390, .7], [168, .54], [244, .54], [78, .58], [328, .58], [104, .5], [300, .48], [-44, .74], [446, .74]]
   ];
-  // Beyond 250: a far crowd fills the horizon
-  const FAR = Array.from({ length: 34 }, (_, i) => {
-    const t = (i + .5) / 34;
-    return [8 + t * 386 + Math.sin(i * 7.3) * 5, .27 + ((i * 37) % 9) / 100];
+
+  // ---------- Camera ----------
+  let cam = { z: 1, from: 1, to: 1, start: 0, dur: 1 };
+  const zoomTo = z => { cam = { z: cam.z, from: cam.z, to: z, start: performance.now(), dur: 1100 }; };
+  const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  // ---------- Front four: split into a body layer and four head layers (Live2D-style rig) ----------
+  // Head ellipses and neck pivots in display px of the 170.5×204 cut-out
+  const HEADS = [
+    { e: [23, 33, 21, 17],    pivot: [26.5, 49], eyes: [[17, 31.75], [26.75, 32]], skin: '#f1eadb', amp: 1.6, period: 4.6 },
+    { e: [68, 47.5, 15, 18],  pivot: [66, 64],   eyes: [[60.5, 48.5]],             skin: '#fbefdc', amp: 2.2, period: 3.7 },
+    { e: [111.5, 12, 13, 12], pivot: [113, 24],  eyes: [[110, 9.75], [112.9, 9.4]], skin: '#ffefd2', amp: 1.4, period: 5.3 },
+    { e: [152, 43, 17.5, 18], pivot: [148, 60],  eyes: [[147.85, 45.5]],           skin: '#fff5dd', amp: 2.0, period: 4.1 }
+  ];
+  const holes = HEADS.map(h => `<ellipse cx='${h.e[0]}' cy='${h.e[1]}' rx='${h.e[2]}' ry='${h.e[3]}' fill='black'/>`).join('');
+  const maskSVG = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='170.5' height='204' viewBox='0 0 170.5 204'><defs><mask id='m'><rect width='170.5' height='204' fill='white'/>${holes}</mask></defs><rect width='170.5' height='204' fill='white' mask='url(#m)'/></svg>`)}")`;
+  const frontBody = document.createElement('div');
+  frontBody.className = 'part front-body';
+  frontBody.style.maskImage = frontBody.style.webkitMaskImage = maskSVG;
+  frontBody.style.maskSize = frontBody.style.webkitMaskSize = '100% 100%';
+  rig.appendChild(frontBody);
+  HEADS.forEach((h, i) => {
+    h.el = document.createElement('div');
+    h.el.className = 'part';
+    h.el.style.clipPath = `ellipse(${h.e[2]}px ${h.e[3]}px at ${h.e[0]}px ${h.e[1]}px)`;
+    h.el.style.transformOrigin = `${h.pivot[0]}px ${h.pivot[1]}px`;
+    h.el.style.setProperty('--skin', h.skin);
+    h.lids = h.eyes.map(([x, y]) => { const l = document.createElement('div'); l.className = 'lid'; l.style.left = x + 'px'; l.style.top = y + 'px'; h.el.appendChild(l); return l; });
+    h.phase = i * 1.7 + .4;
+    h.nextBlink = performance.now() + 800 + i * 900;
+    rig.appendChild(h.el);
   });
 
-  // ---------- Figure drawing ----------
+  const blink = (els, twice) => {
+    const kf = els[0] instanceof SVGElement
+      ? [{ transform: 'scaleY(1)' }, { transform: 'scaleY(.08)', offset: .45 }, { transform: 'scaleY(.08)', offset: .6 }, { transform: 'scaleY(1)' }]
+      : [{ opacity: 0 }, { opacity: 1, offset: .3 }, { opacity: 1, offset: .65 }, { opacity: 0 }];
+    els.forEach(el => {
+      el.animate(kf, { duration: 150, easing: 'ease-in-out' });
+      if (twice) el.animate(kf, { duration: 150, delay: 230, easing: 'ease-in-out' });
+    });
+  };
+
+  // ---------- Guest figures ----------
   const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  const C = { cream: '#f7ecd8', blue: '#0f56a2', blue2: '#1d5d93', navy: '#0b2c55', black: '#15161c', shoe: '#0a0a0c' };
+  const C = { cream: '#f7ecd8', blue: '#0f56a2', blue2: '#1d5d93', navy: '#0b2c55', black: '#15161c' };
   const pick = (r, list) => list[Math.floor(r() * list.length)];
 
   // Hair is lifted off pure black (and given light strands, as in the original art) so it reads against the black screen
@@ -338,6 +436,7 @@ body {
     }
   };
 
+  // The head sits in its own group (pivoting at the neck) and the eyes in another, so both can move independently
   const personSVG = seed => {
     const r = rng(seed);
     const type = pick(r, ['coat', 'dress', 'sweater', 'suit', 'coat', 'dress']);
@@ -345,37 +444,32 @@ body {
     const cheek = r() < .35 ? '<circle cx="35.5" cy="38" r="2.4" fill="#9fb3d6" opacity=".7"/>' : '';
     return `<svg viewBox="0 0 60 200"><g filter="url(#grain)">${body(type, r)}</g>` +
       '<rect x="28" y="40" width="4" height="25" fill="#f7ecd8"/>' +
-      '<ellipse cx="30" cy="33" rx="10.5" ry="12.5" fill="#f7ecd8"/>' + HAIR[hair] + cheek +
-      '<circle cx="26.5" cy="34" r=".95" fill="#06070a"/><circle cx="33.5" cy="34" r=".95" fill="#06070a"/></svg>';
-  };
-  // Far crowd: a simpler silhouette, it is only a few pixels tall
-  const farSVG = seed => {
-    const r = rng(seed);
-    const tone = pick(r, [C.blue, C.navy, C.blue2, C.black]);
-    return `<svg viewBox="0 0 60 200"><path d="M20 63c-7 2-9 12-9 28l-3 105h44l-3-105c0-16-2-26-9-28z" fill="${tone}"/>` +
-      '<ellipse cx="30" cy="34" rx="11" ry="13" fill="#f7ecd8"/>' + (r() < .6 ? `<path d="M19 33c0-12 5-16 11-16s11 4 11 14c-4-4-8-6-12-5-4 1-7 3-10 7z" fill="${HAIR_FILL}"/>` : '') + '</svg>';
+      '<g class="hd" style="transform-origin: 30px 47px"><ellipse cx="30" cy="33" rx="10.5" ry="12.5" fill="#f7ecd8"/>' + HAIR[hair] + cheek +
+      '<g class="ey" style="transform-origin: 30px 34px"><circle cx="26.5" cy="34" r=".95" fill="#06070a"/><circle cx="33.5" cy="34" r=".95" fill="#06070a"/></g></g></svg>';
   };
 
-  // ---------- Guests ----------
   const guests = [];
-  SLOTS.forEach((list, tier) => list.forEach(([x, s], i) => guests.push({ tier, x, s, seed: tier * 31 + i * 7 + 3, far: false })));
-  FAR.forEach(([x, s], i) => guests.push({ tier: 6, x, s, seed: 500 + i, far: true }));
-  guests.forEach((g, i) => {
+  SLOTS.forEach((list, tier) => list.forEach(([x, s], i) => guests.push({ tier, x, s, seed: tier * 31 + i * 7 + 3 })));
+  guests.forEach(g => {
     g.el = document.createElement('div');
     g.el.className = 'guest';
-    g.el.innerHTML = g.far ? farSVG(g.seed) : personSVG(g.seed);
-    g.hf = g.far ? 1 : .9 + rng(g.seed * 13)() * .16; // height variety
+    g.el.innerHTML = personSVG(g.seed);
+    g.hd = g.el.querySelector('.hd');
+    g.ey = g.el.querySelector('.ey');
+    const r = rng(g.seed * 13);
+    g.hf = .9 + r() * .16; // height variety
+    g.phase = r() * 6.28; g.period = 3.4 + r() * 2.2; g.amp = 1.5 + r() * 2;
+    g.nextBlink = performance.now() + 1000 + r() * 4000;
     g.el.style.zIndex = Math.round(feetY(g.s) * 10);
     g.el.style.filter = `brightness(${fog(g.s).toFixed(2)})`;
-    stage.appendChild(g.el);
+    world.appendChild(g.el);
     g.cur = { x: g.x, s: g.s, o: 0 }; // current pose (start point for interrupted moves)
     g.anim = null;
   });
   front.style.zIndex = FRONT_Y * 10 + 5;
 
   const place = (g, x, s, o, lift = 0, tilt = 0, sy = 1) => {
-    const h = BASE_H * s * g.hf;
-    const scale = h / 200;
+    const scale = BASE_H * s * g.hf / 200;
     g.el.style.transform = `translate(${x - 30}px, ${feetY(s) - 200 - lift}px) rotate(${tilt}deg) scale(${scale}, ${scale * sy})`;
     g.el.style.opacity = o;
     g.cur = { x, s, o };
@@ -383,83 +477,306 @@ body {
 
   const easeOut = t => 1 - Math.pow(1 - t, 2.2);
   const easeIn = t => t * t;
-  const RUN_HZ = 3.4, BOB = 7, HOP = 380;
+  const RUN_HZ = 3.4, BOB = 7, HOP = 380, BEAT = 2; // BEAT: beats per second (120 BPM)
 
+  // Off-screen x in world space for the given camera zoom
+  const offscreen = (side, z) => CX + side * (CX / z + 50 + Math.random() * 30);
   // Where a guest runs in from: the near side edge for the front rows, the far horizon for the back
-  const entryPoint = g => {
-    if (g.far || g.s < .47) {
-      const side = g.x < 201 ? -1 : 1;
-      return { x: g.x + side * (60 + Math.random() * 70), s: g.s * .55 };
-    }
-    return { x: g.x < 201 ? -40 - Math.random() * 30 : 442 + Math.random() * 30, s: g.s * (.82 + Math.random() * .1) };
+  const entryPoint = (g, z) => {
+    const side = g.x < CX ? -1 : 1;
+    if (g.s < .56) return { x: g.x + side * rand(60, 130), s: g.s * .55 };
+    return { x: offscreen(side, z), s: g.s * rand(.82, .92) };
   };
-
-  const arrive = (g, delay) => {
-    const from = g.cur.o > .05 ? { ...g.cur } : entryPoint(g);
+  const arrive = (g, delay, z) => {
+    const from = g.cur.o > .05 ? { ...g.cur } : entryPoint(g, z);
     const dist = Math.hypot(g.x - from.x, (g.s - from.s) * 300);
-    g.anim = { kind: 'in', start: performance.now() + delay, dur: Math.min(1250, 650 + dist * 2.2), from, o0: g.cur.o, phase: Math.random() * Math.PI };
+    g.anim = { kind: 'in', start: performance.now() + delay, dur: Math.min(1300, 650 + dist * 2.2), from, o0: g.cur.o, phase: Math.random() * Math.PI };
   };
   const leave = (g, delay) => {
-    const side = g.x < 201 ? -1 : 1;
-    const to = g.far || g.s < .47 ? { x: g.x + side * 90, s: g.s * .55 } : { x: side < 0 ? -50 : 452, s: g.cur.s * .9 };
-    g.anim = { kind: 'out', start: performance.now() + delay, dur: 520 + Math.random() * 240, from: { ...g.cur }, to, o0: g.cur.o, phase: Math.random() * Math.PI };
+    const side = g.x < CX ? -1 : 1;
+    const to = g.s < .56 ? { x: g.x + side * 90, s: g.s * .55 } : { x: offscreen(side, cam.z), s: g.cur.s * .9 };
+    g.anim = { kind: 'out', start: performance.now() + delay, dur: rand(520, 760), from: { ...g.cur }, to, o0: g.cur.o, phase: Math.random() * Math.PI };
   };
 
+  // ---------- Idle + party groove ----------
+  let groove = 0, grooveTarget = 0, react = -1e9;
+  const beatLift = (t, ph) => Math.abs(Math.sin(Math.PI * BEAT * t + ph));
+
+  const idleFront = (now, t) => {
+    const on = idleToggle.checked && motionOn();
+    const breath = on ? Math.sin(t * Math.PI * 2 / 4.2) : 0;
+    const bounce = on ? beatLift(t, 0) * 2.4 * groove : 0;
+    rig.style.transform = `translateY(${-bounce}px)`;
+    frontBody.style.transform = `scaleY(${1 + .007 * breath})`;
+    const r = Math.max(0, 1 - (now - react) / 1400); // look-around when guests are called in
+    HEADS.forEach((h, i) => {
+      const rise = (204 - h.pivot[1]) * .007 * breath; // the head rides on the breathing body
+      let a = 0, dx = 0;
+      if (on) {
+        const w = Math.sin(t * Math.PI * 2 / h.period + h.phase);
+        a = h.amp * w + groove * 3 * Math.sin(Math.PI * 2 * BEAT * t + i * .9) + r * 5 * Math.sin((now - react) / 160 + i * 1.3);
+        dx = w * .35; // a hint of turn alongside the tilt
+        if (now > h.nextBlink) { blink(h.lids, Math.random() < .2); h.nextBlink = now + rand(2400, 5500); }
+      }
+      h.el.style.transform = `translate(${dx}px, ${-rise}px) rotate(${a}deg)`;
+    });
+  };
+
+  const idleGuest = (g, now, t) => {
+    const on = idleToggle.checked && motionOn();
+    if (!on) { place(g, g.x, g.s, 1); g.hd.style.transform = ''; return; }
+    const w = Math.sin(t * Math.PI * 2 / g.period + g.phase);
+    const lift = beatLift(t, g.phase) * 4 * g.s * groove;
+    place(g, g.x, g.s, 1, lift, w * .6 + groove * 1.5 * Math.sin(Math.PI * BEAT * t + g.phase), 1 + .008 * Math.sin(t * Math.PI * 2 / 4.2 + g.phase));
+    g.hd.style.transform = `rotate(${g.amp * w + groove * 4 * Math.sin(Math.PI * 2 * BEAT * t + g.phase)}deg)`;
+    if (now > g.nextBlink) { blink([g.ey], Math.random() < .2); g.nextBlink = now + rand(2400, 6000); }
+  };
+
+  // ---------- Main loop ----------
+  let last = performance.now();
   const step = now => {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    const t = now / 1000;
+    // Camera
+    const cp = Math.min(1, (now - cam.start) / cam.dur);
+    cam.z = cam.from + (cam.to - cam.from) * easeInOut(cp);
+    world.style.transform = `scale(${cam.z})`;
+    groove += (grooveTarget - groove) * (1 - Math.exp(-dt * 3));
+
+    idleFront(now, t);
     for (const g of guests) {
       const a = g.anim;
-      if (!a) continue;
-      const t = (now - a.start) / a.dur;
-      if (t < 0) continue;
+      if (!a) { if (g.cur.o > 0) idleGuest(g, now, t); continue; }
+      const p0 = (now - a.start) / a.dur;
+      if (p0 < 0) continue;
       const dir = Math.sign((a.kind === 'in' ? g.x : a.to.x) - a.from.x) || 1;
-      const bob = el => Math.abs(Math.sin(a.phase + el / 1000 * Math.PI * RUN_HZ));
+      const el = now - a.start;
+      const bob = Math.abs(Math.sin(a.phase + el / 1000 * Math.PI * RUN_HZ));
       if (a.kind === 'in') {
-        if (t < 1) {
-          const p = easeOut(t), el = now - a.start, b = bob(el);
+        if (p0 < 1) {
+          const p = easeOut(p0);
           const x = a.from.x + (g.x - a.from.x) * p, s = a.from.s + (g.s - a.from.s) * p;
-          const settle = 1 - Math.pow(t, 3); // the run calms down as they reach the slot
-          place(g, x, s, Math.min(1, a.o0 + t * 4), b * BOB * s * settle, (dir * 7 + Math.sin(el / 90) * 4) * settle, 1 - (1 - b) * .04 * settle);
+          const settle = 1 - Math.pow(p0, 3); // the run calms down as they reach the slot
+          place(g, x, s, Math.min(1, a.o0 + p0 * 4), bob * BOB * s * settle, (dir * 7 + Math.sin(el / 90) * 4) * settle, 1 - (1 - bob) * .04 * settle);
+          g.hd.style.transform = `rotate(${-dir * 4 * settle}deg)`;
         } else {
           // Arrival hop: a small jump, then a squash on landing
-          const h = Math.min(1, (now - a.start - a.dur) / HOP);
+          const h = Math.min(1, (el - a.dur) / HOP);
           const jump = Math.sin(Math.min(1, h / .6) * Math.PI) * 9 * g.s;
           const squash = h > .6 ? 1 - Math.sin((h - .6) / .4 * Math.PI) * .06 : 1 + Math.sin(h / .6 * Math.PI) * .03;
           place(g, g.x, g.s, 1, jump, 0, squash);
-          if (h >= 1) { place(g, g.x, g.s, 1); g.anim = null; }
+          g.hd.style.transform = '';
+          if (h >= 1) g.anim = null;
         }
       } else {
-        const p = easeIn(Math.min(1, t)), el = now - a.start;
+        const p = easeIn(Math.min(1, p0));
         const x = a.from.x + (a.to.x - a.from.x) * p, s = a.from.s + (a.to.s - a.from.s) * p;
-        const o = t < .55 ? a.o0 : a.o0 * Math.max(0, 1 - (t - .55) / .45);
-        place(g, x, s, o, bob(el) * BOB * s, dir * 8 + Math.sin(el / 90) * 4);
-        if (t >= 1) { place(g, g.x, g.s, 0); g.anim = null; }
+        const o = p0 < .55 ? a.o0 : a.o0 * Math.max(0, 1 - (p0 - .55) / .45);
+        place(g, x, s, o, bob * BOB * s, dir * 8 + Math.sin(el / 90) * 4);
+        if (p0 >= 1) { place(g, g.x, g.s, 0); g.anim = null; }
       }
     }
+    stepParty(now, dt, t);
     requestAnimationFrame(step);
   };
-  requestAnimationFrame(step);
 
   // Whistle: a ripple on the ground at the front group's feet, like the Pikmin whistle circle
   const ring = () => {
-    if (!document.getElementById('ring').checked || reduceMotion.matches) return;
-    const NS = 'http://www.w3.org/2000/svg';
+    react = performance.now();
+    if (!document.getElementById('ring').checked || !motionOn()) return;
     [0, 110].forEach(d => {
       const e = document.createElementNS(NS, 'ellipse');
-      e.setAttribute('cx', 201); e.setAttribute('cy', FRONT_Y - 1);
+      e.setAttribute('cx', CX); e.setAttribute('cy', FRONT_Y - 1);
       e.setAttribute('fill', 'none'); e.setAttribute('stroke', '#faefdd'); e.setAttribute('stroke-width', 1.2);
       whistle.appendChild(e);
       const start = performance.now() + d;
       const tick = now => {
         const t = Math.max(0, (now - start) / 720);
         const p = 1 - Math.pow(1 - Math.min(t, 1), 4);
-        e.setAttribute('rx', 30 + p * 175); e.setAttribute('ry', 4 + p * 20);
+        e.setAttribute('rx', 30 + p * 200); e.setAttribute('ry', 4 + p * 22);
         e.setAttribute('opacity', (t === 0 ? 0 : .55 * (1 - p)).toFixed(3));
         if (t < 1) requestAnimationFrame(tick); else e.remove();
       };
       requestAnimationFrame(tick);
     });
-    // The front group reacts with a tiny lift, as if they had just called out
     front.animate([{ transform: 'none' }, { transform: 'translateY(-3px) scaleY(1.01)', offset: .35 }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });
+  };
+
+  // ---------- Party decorations (175+) ----------
+  const glow = document.getElementById('glow');
+  const glowBlue = document.getElementById('glowBlue');
+  const beams = [...document.querySelectorAll('.beam')].map((el, i) => ({
+    el, set: el.dataset.set,
+    base: [-19, 19, -8, 8][i],      // resting angle (deg), pointing at the crowd
+    swing: [9, 9, 14, 14][i], period: [5.5, 6.1, 3.2, 3.6][i], phase: [0, 2, 1, 3.4][i],
+    on: false, level: 0
+  }));
+  const garland = document.getElementById('garland');
+  const ball = document.getElementById('ball');
+  const ballString = document.getElementById('ballString');
+  const ballBody = document.getElementById('ballBody');
+  const facets = document.getElementById('facets');
+  const glint = document.getElementById('glint');
+
+  // Mirror-ball facets: two copies side by side, slid sideways so the ball appears to spin
+  for (let copy = 0; copy < 2; copy++) for (let row = -5; row <= 4; row++) for (let col = 0; col < 8; col++) {
+    const r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', -11 + copy * 22 + col * 2.75); r.setAttribute('y', row * 2.4);
+    r.setAttribute('width', 2.4); r.setAttribute('height', 2);
+    const v = Math.floor(rand(110, 250));
+    r.setAttribute('fill', `rgb(${v},${v},${Math.min(255, v + 14)})`); r.setAttribute('opacity', .55);
+    facets.appendChild(r);
+  }
+
+  // String lights: two strands hung from the centre, drawn outwards
+  const BULB_COLORS = ['#ffe7b0', '#faefdd', '#ffcf86', '#9fb6ff', '#ffb3a0'];
+  const strands = [
+    'M201 226 Q98 292 -8 220',
+    'M201 226 Q304 292 410 220'
+  ].map(d => {
+    const g = document.createElementNS(NS, 'g');
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', d); path.setAttribute('fill', 'none'); path.setAttribute('stroke', '#5d5a55'); path.setAttribute('stroke-width', '.8');
+    g.appendChild(path); garland.appendChild(g);
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+    const bulbs = [];
+    for (let i = 1; i <= 10; i++) {
+      const pt = path.getPointAtLength(len * i / 10.6);
+      const color = BULB_COLORS[i % BULB_COLORS.length];
+      const b = document.createElementNS(NS, 'g');
+      b.setAttribute('transform', `translate(${pt.x} ${pt.y + 3})`);
+      b.innerHTML = `<g style="opacity:0; transform-origin: 0 -4px"><circle r="6" fill="${color}" filter="url(#bulbGlow)" opacity=".7"/><rect x="-1" y="-4" width="2" height="2" fill="#4a4844"/><ellipse rx="2.2" ry="2.8" fill="${color}"/></g>`;
+      g.appendChild(b);
+      bulbs.push({ el: b.firstChild, halo: b.firstChild.firstChild, phase: Math.random() * 6.28, speed: rand(1.5, 3.5) });
+    }
+    return { path, len, bulbs };
+  });
+
+  // Canvases: background (mirror-ball reflections) and foreground (confetti)
+  const bg = document.getElementById('bgfx').getContext('2d');
+  const fx = document.getElementById('fx').getContext('2d');
+  bg.scale(2, 2); fx.scale(2, 2);
+  const CONFETTI = ['#faefdd', '#ffd68a', '#4f6bff', '#9fb6ff', '#ff9e86', '#ffffff'];
+  const bits = [];
+  const burst = (x, y, angle, n) => {
+    for (let i = 0; i < n; i++) {
+      const a = (angle + rand(-24, 24)) * Math.PI / 180, v = rand(360, 760);
+      bits.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: rand(0, 6.28), vr: rand(-12, 12), w: rand(3, 6), h: rand(5, 9),
+        flip: rand(0, 6.28), vf: rand(6, 14), color: CONFETTI[i % CONFETTI.length], life: rand(2.2, 3.2), age: 0, ribbon: Math.random() < .25 });
+    }
+  };
+  const pop = () => {
+    if (!motionOn()) return;
+    burst(18, 440, -62, 70); burst(384, 440, -118, 70);
+    // A quick flash at each cracker mouth
+    [[18, 440], [384, 440]].forEach(([x, y]) => bits.push({ flash: true, x, y, age: 0, life: .22 }));
+  };
+  const reflections = Array.from({ length: 30 }, () => ({ x: rand(0, 402), y: rand(70, 440), r: rand(1, 2.6), v: rand(14, 34), ph: rand(0, 6.28), blue: Math.random() < .35 }));
+
+  let level = 0, rain = 0, ballOn = 0, ballTarget = 0, ballDrop = null;
+  const beamOn = (b, on) => {
+    if (b.on === on) return;
+    b.on = on;
+    b.el.getAnimations().forEach(a => a.cancel());
+    if (on && motionOn()) b.el.animate([{ opacity: 0 }, { opacity: .9, offset: .15 }, { opacity: .15, offset: .3 }, { opacity: 1, offset: .5 }, { opacity: .55, offset: .62 }, { opacity: 1 }], { duration: 520, fill: 'forwards' });
+    else b.el.animate([{ opacity: getComputedStyle(b.el).opacity }, { opacity: on ? 1 : 0 }], { duration: on ? 1 : 420, fill: 'forwards' });
+  };
+  const garlandOn = on => {
+    strands.forEach(s => {
+      s.path.getAnimations().forEach(a => a.cancel());
+      s.path.animate([{ strokeDashoffset: getComputedStyle(s.path).strokeDashoffset }, { strokeDashoffset: on ? 0 : s.len }],
+        { duration: motionOn() ? (on ? 700 : 500) : 1, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
+      s.bulbs.forEach((b, i) => {
+        b.el.getAnimations().forEach(a => a.cancel());
+        const d = motionOn() ? (on ? 120 + i * 45 : (9 - i) * 25) : 0;
+        b.el.animate(on
+          ? [{ opacity: 0, transform: 'scale(0)' }, { opacity: 1, transform: 'scale(1.35)', offset: .6 }, { opacity: 1, transform: 'scale(1)' }]
+          : [{ opacity: getComputedStyle(b.el).opacity }, { opacity: 0 }], { duration: on ? 360 : 200, delay: d, fill: 'forwards', easing: 'ease-out' });
+      });
+    });
+  };
+  const setDecor = (next, prev) => {
+    const lv = Math.max(0, next - 3), pl = Math.max(0, prev - 3);
+    level = lv;
+    grooveTarget = TIERS[next].groove;
+    beams.forEach(b => beamOn(b, b.set === 'a' ? lv >= 1 : lv >= 3));
+    glow.style.transition = glowBlue.style.transition = 'opacity .8s ease';
+    glow.style.opacity = lv >= 1 ? 1 : 0;
+    glowBlue.style.opacity = lv >= 3 ? 1 : 0;
+    if ((lv >= 2) !== (pl >= 2)) garlandOn(lv >= 2);
+    if (lv >= 2 && lv > pl) setTimeout(pop, lv >= 2 && pl < 2 ? 380 : 0);
+    rain = lv >= 3 ? 1 : 0;
+    ballTarget = lv >= 3 ? 1 : 0;
+    if (lv >= 3 && pl < 3) ballDrop = performance.now() + 250;
+  };
+
+  const stepParty = (now, dt, t) => {
+    const on = motionOn();
+    // Beams sweep
+    beams.forEach(b => {
+      const a = b.base + (on ? b.swing * Math.sin(t * Math.PI * 2 / b.period + b.phase) : 0);
+      b.el.style.transform = `rotate(${a}deg)`;
+    });
+    // Mirror ball
+    ballOn += (ballTarget - ballOn) * (1 - Math.exp(-dt * 5));
+    ball.setAttribute('opacity', ballOn.toFixed(3));
+    if (ballTarget) {
+      const p = ballDrop ? Math.max(0, Math.min(1, (now - ballDrop) / 700)) : 1;
+      const e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p) * Math.cos(p * 9); // drop with a little bounce
+      const y = 226 + 20 * e;
+      ballString.setAttribute('y2', y - 11 * e);
+      ballBody.setAttribute('transform', `translate(201 ${y}) scale(${Math.min(1, p * 3)}) rotate(${on ? Math.sin(t * 1.3) * 4 : 0})`);
+      facets.setAttribute('transform', `translate(${on ? -((t * 9) % 22) : 0} 0)`);
+      const gl = (t * .8) % 1;
+      glint.setAttribute('transform', `translate(5 -6) scale(${gl < .15 ? Math.sin(gl / .15 * Math.PI) : 0})`);
+    }
+    // Bulb twinkle
+    if (level >= 2) strands.forEach(s => s.bulbs.forEach(b => b.halo.setAttribute('opacity', (on ? .45 + .4 * Math.sin(t * b.speed + b.phase) : .7).toFixed(2))));
+
+    // Background canvas: mirror-ball reflections drifting across the room
+    bg.clearRect(0, 0, 402, 452);
+    if (ballOn > .02) {
+      reflections.forEach(r => {
+        if (on) r.x += r.v * dt;
+        if (r.x > 412) { r.x = -10; r.y = rand(70, 440); }
+        const a = ballOn * (.35 + .3 * Math.sin(t * 3 + r.ph));
+        bg.fillStyle = r.blue ? `rgba(150,175,255,${a})` : `rgba(255,244,220,${a})`;
+        bg.beginPath(); bg.arc(r.x, r.y, r.r, 0, 6.28); bg.fill();
+        bg.fillStyle = r.blue ? `rgba(150,175,255,${a * .18})` : `rgba(255,244,220,${a * .18})`;
+        bg.beginPath(); bg.arc(r.x, r.y, r.r * 3.2, 0, 6.28); bg.fill();
+      });
+    }
+
+    // Foreground canvas: confetti
+    if (rain && on && Math.random() < dt * 16) {
+      bits.push({ x: rand(0, 402), y: rand(196, 214), vx: rand(-10, 10), vy: rand(30, 60), r: rand(0, 6.28), vr: rand(-4, 4), w: rand(3, 5), h: rand(5, 8),
+        flip: rand(0, 6.28), vf: rand(3, 7), color: CONFETTI[Math.floor(rand(0, CONFETTI.length))], life: 5, age: 0, ribbon: false, gentle: true });
+    }
+    fx.clearRect(0, 0, 402, 452);
+    for (let i = bits.length - 1; i >= 0; i--) {
+      const b = bits[i];
+      b.age += dt;
+      if (b.age > b.life || b.y > 460) { bits.splice(i, 1); continue; }
+      if (b.flash) {
+        const p = b.age / b.life;
+        fx.fillStyle = `rgba(255,246,225,${.8 * (1 - p)})`;
+        fx.beginPath(); fx.arc(b.x, b.y, 10 + p * 26, 0, 6.28); fx.fill();
+        continue;
+      }
+      const drag = Math.exp(-(b.gentle ? .4 : 2.4) * dt);
+      b.vx *= drag; b.vy = b.vy * drag + (b.gentle ? 18 : 760) * dt;
+      if (!b.gentle && b.vy > 70) b.vy = 70 + (b.vy - 70) * .9; // flutter down once the burst has spent its energy
+      b.x += (b.vx + Math.sin(b.flip) * (b.gentle ? 14 : 22)) * dt; b.y += b.vy * dt;
+      b.r += b.vr * dt; b.flip += b.vf * dt;
+      const fade = Math.min(1, (b.life - b.age) / .6, b.gentle ? b.age / .5 : 1, (452 - b.y) / 30);
+      fx.save();
+      fx.globalAlpha = Math.max(0, fade);
+      fx.translate(b.x, b.y); fx.rotate(b.r); fx.scale(1, Math.cos(b.flip));
+      fx.fillStyle = b.color;
+      if (b.ribbon) fx.fillRect(-1, -b.h, 2, b.h * 2); else fx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      fx.restore();
+    }
   };
 
   // ---------- Tier changes ----------
@@ -469,20 +786,24 @@ body {
     const prev = tier;
     tier = next;
     updateLabels(prev, next, animate);
-    if (!animate || reduceMotion.matches) {
-      guests.forEach(g => { g.anim = null; place(g, g.x, g.s, g.tier <= next ? 1 : 0); });
+    setDecor(next, Math.max(0, prev));
+    const peopleTier = Math.min(next, 3), prevPeople = Math.min(Math.max(prev, 0), 3);
+    if (!animate || !motionOn()) {
+      cam = { z: TIERS[next].zoom, from: TIERS[next].zoom, to: TIERS[next].zoom, start: 0, dur: 1 };
+      guests.forEach(g => { g.anim = null; place(g, g.x, g.s, g.tier <= peopleTier ? 1 : 0); });
       return;
     }
-    if (next > prev) {
+    zoomTo(TIERS[next].zoom);
+    if (peopleTier > prevPeople) {
       ring();
       // New guests: nearest first, each tier staggered on its own so a jump of several tiers still reads as waves
-      const joining = guests.filter(g => g.tier <= next && (g.cur.o < .99 || g.anim?.kind === 'out'));
+      const joining = guests.filter(g => g.tier <= peopleTier && (g.cur.o < .99 || g.anim?.kind === 'out'));
       joining.sort((a, b) => a.tier - b.tier || b.s - a.s);
-      joining.forEach((g, i) => arrive(g, 80 + i * (g.far ? 22 : 70) + Math.random() * 90));
-    } else {
-      const going = guests.filter(g => g.tier > next && (g.cur.o > 0 || g.anim?.kind === 'in'));
+      joining.forEach((g, i) => arrive(g, 80 + i * 70 + Math.random() * 90, TIERS[next].zoom));
+    } else if (peopleTier < prevPeople) {
+      const going = guests.filter(g => g.tier > peopleTier && (g.cur.o > 0 || g.anim?.kind === 'in'));
       going.sort((a, b) => b.tier - a.tier || a.s - b.s);
-      going.forEach((g, i) => leave(g, i * (g.far ? 8 : 35)));
+      going.forEach((g, i) => leave(g, i * 35));
     }
   };
 
@@ -493,12 +814,12 @@ body {
     const t = TIERS[next];
     track.setAttribute('aria-valuenow', next);
     track.setAttribute('aria-valuetext', `${t.aria}、${t.price === null ? '要相談' : t.price === 0 ? '無料' : yen(t.price)}`);
-    const pop = el => animate && !reduceMotion.matches && el.animate(
+    const pop = el => animate && motionOn() && el.animate(
       [{ transform: 'translateY(4px)', opacity: .3 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: EXPO });
     countLabel.textContent = t.label; pop(countLabel);
     cancelAnimationFrame(priceAnim);
     const from = prev >= 0 ? TIERS[prev].price : null;
-    if (t.price === null || from === null || !animate || reduceMotion.matches) {
+    if (t.price === null || from === null || !animate || !motionOn()) {
       priceLabel.textContent = t.price === null ? '要相談' : '+ ' + yen(t.price);
       if (from === null || t.price === null) pop(priceLabel);
       return;
@@ -541,7 +862,7 @@ body {
   track.addEventListener('pointermove', e => {
     if (!dragging) return;
     const x = Math.max(19, Math.min(track.clientWidth - 19, localX(e)));
-    setThumb(x, false); setTier(nearest(x)); layoutTicks(); // the crowd follows live while dragging
+    setThumb(x, false); setTier(nearest(x)); layoutTicks(); // the scene follows live while dragging
   });
   const end = () => { if (!dragging) return; dragging = false; track.classList.remove('dragging'); choose(nearest(thumbX)); };
   track.addEventListener('pointerup', end);
@@ -561,41 +882,40 @@ body {
 
   // ---------- Rail ----------
   const tiersEl = document.getElementById('tiers');
-  let cum = 0;
-  TIERS.forEach((t, i) => {
-    cum += SLOTS[i].length;
-    const extra = i === 6 ? `+${cum} / 遠景 +${FAR.length}` : cum ? `+${cum}` : '4人のみ';
-    tiersEl.insertAdjacentHTML('beforeend',
-      `<dt class="n">${t.label.replace('~ ', '')}</dt><dd class="p">${t.price === null ? '相談' : t.price ? yen(t.price) : '無料'}</dd><dd class="g">${extra}</dd>`);
-  });
+  TIERS.forEach(t => tiersEl.insertAdjacentHTML('beforeend',
+    `<dt class="n">${t.label.replace('~ ', '')}</dt><dd class="p">${t.price === null ? '相談' : t.price ? yen(t.price) : '無料'}</dd><dd class="g">${t.note}</dd>`));
 
   let demoTimers = [];
   const stopDemo = () => { demoTimers.forEach(clearTimeout); demoTimers = []; };
   document.getElementById('demo').addEventListener('click', () => {
     stopDemo();
     const seq = [0, 1, 2, 3, 4, 5, 6, 3, 0];
-    seq.forEach((v, i) => demoTimers.push(setTimeout(() => choose(v), i * 1500)));
+    const gaps = [0, 1500, 1500, 1700, 1900, 2000, 2400, 3600, 1900];
+    let at = 0;
+    seq.forEach((v, i) => { at += gaps[i]; demoTimers.push(setTimeout(() => choose(v), at)); });
   });
 
   // ---------- Entrance ----------
   const intro = () => {
     stopDemo();
-    if (reduceMotion.matches) return;
+    if (!motionOn()) return;
     front.animate([
       { opacity: 0, transform: 'translateY(40px) scale(.96)', filter: 'blur(6px)' },
       { opacity: 1, offset: .45, filter: 'blur(0)' },
       { opacity: 1, transform: 'none', filter: 'blur(0)' }
     ], { duration: 1000, delay: 60, easing: EXPO, fill: 'backwards' });
-    // Anyone already gathered comes back in after the front group
+    // Whatever was already set plays back in after the front group
     if (tier > 0) {
-      guests.forEach(g => { g.anim = null; place(g, g.x, g.s, 0); });
-      const t = tier; tier = 0; demoTimers.push(setTimeout(() => setTier(t), 650));
+      const t = tier;
+      choose(0, false, false);
+      demoTimers.push(setTimeout(() => choose(t), 650));
     }
   };
   document.getElementById('replay').addEventListener('click', intro);
 
   addEventListener('resize', () => { setThumb(stopX(tier), false); layoutTicks(); });
   choose(0, false, false);
+  requestAnimationFrame(step);
   if (document.readyState === 'complete') intro(); else addEventListener('load', intro);
 })();
 </script>
