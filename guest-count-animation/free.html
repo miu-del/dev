@@ -451,16 +451,24 @@ body {
     girl:  { w: 64, h: 264, e: [35, 28, 28, 28], pivot: [31, 54], eyes: [[29.4, 28.8]],           skin: '#fbefdd' },
     woman: { w: 80, h: 277, e: [37, 25, 34, 27], pivot: [40, 50], eyes: [[25.5, 20.5], [40, 20.7]], skin: '#f1e9db' },
     boy:   { w: 85, h: 262, e: [42, 28, 26, 27], pivot: [45, 56], eyes: [[44.5, 33.5]],           skin: '#fbefdd' },
-    man:   { w: 94, h: 302, e: [46, 14, 18, 16], pivot: [50, 30], eyes: [[49, 12.5]],             skin: '#ffefd3' }
+    man:   { w: 94, h: 302, e: [46, 14, 18, 16], pivot: [50, 30], eyes: [[49, 12.5]],             skin: '#ffefd3' },
+    // Drawn at 2× in the png; sizes here are still sprite px. The kid's pigtails reach past any ellipse,
+    // so her head layer is cut with a polygon that stops at the collar.
+    florist: { w: 89.6, h: 300, e: [50.3, 19.5, 18.4, 19.5], pivot: [48, 39.1], eyes: [[39.3, 18.8], [44.1, 19.1]], skin: '#fcf0d9' },
+    kid:     { w: 115.5, h: 210, poly: [[12.2, -1.8], [108.5, -1.8], [108.5, 63], [84, 63], [77, 55.1], [69.1, 52.5], [46.4, 52.5], [38.5, 55.1], [31.5, 63], [12.2, 63]],
+               pivot: [57.7, 51.6], eyes: [[41.6, 23.8], [57, 25.5]], skin: '#fbf1d9' }
   };
   const SPRITE_PX = 204 / 302; // the tall man is the full 204px height of the front group at depth 1
   Object.entries(SPRITES).forEach(([name, sp]) => {
     sp.img = `url(assets/guest-${name}.png)`;
-    const [cx, cy, rx, ry] = sp.e;
-    sp.mask = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${sp.w}' height='${sp.h}' viewBox='0 0 ${sp.w} ${sp.h}'><defs><mask id='m'><rect width='${sp.w}' height='${sp.h}' fill='white'/><ellipse cx='${cx}' cy='${cy}' rx='${rx}' ry='${ry}' fill='black'/></mask></defs><rect width='${sp.w}' height='${sp.h}' fill='white' mask='url(#m)'/></svg>`)}")`;
+    // Head shape: an ellipse, or a polygon where an ellipse would cut through hair
+    const hole = sp.poly ? `<polygon points='${sp.poly.map(p => p.join(',')).join(' ')}' fill='black'/>`
+      : `<ellipse cx='${sp.e[0]}' cy='${sp.e[1]}' rx='${sp.e[2]}' ry='${sp.e[3]}' fill='black'/>`;
+    sp.clip = sp.poly ? `polygon(${sp.poly.map(([x, y]) => `${x}px ${y}px`).join(', ')})` : `ellipse(${sp.e[2]}px ${sp.e[3]}px at ${sp.e[0]}px ${sp.e[1]}px)`;
+    sp.mask = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${sp.w}' height='${sp.h}' viewBox='0 0 ${sp.w} ${sp.h}'><defs><mask id='m'><rect width='${sp.w}' height='${sp.h}' fill='white'/>${hole}</mask></defs><rect width='${sp.w}' height='${sp.h}' fill='white' mask='url(#m)'/></svg>`)}")`;
   });
-  // Character per guest, mixed so neighbours rarely match (and the first two differ from the front four beside them)
-  const CAST = ['man', 'boy', 'woman', 'girl', 'boy', 'man', 'girl', 'woman'];
+  // Character per guest, mixed so neighbours rarely match; the first two (at 25) are the two who are not in the front four
+  const CAST = ['florist', 'kid', 'man', 'woman', 'boy', 'girl', 'kid', 'florist', 'woman', 'man', 'girl', 'boy'];
 
   const buildGuest = (sp, flip) => {
     const el = document.createElement('div');
@@ -471,7 +479,7 @@ body {
     body.style.maskImage = body.style.webkitMaskImage = sp.mask;
     const head = document.createElement('div');
     head.style.backgroundImage = sp.img;
-    head.style.clipPath = `ellipse(${sp.e[2]}px ${sp.e[3]}px at ${sp.e[0]}px ${sp.e[1]}px)`;
+    head.style.clipPath = sp.clip;
     head.style.transformOrigin = `${sp.pivot[0]}px ${sp.pivot[1]}px`;
     head.style.setProperty('--skin', sp.skin);
     const lids = sp.eyes.map(([x, y]) => { const l = document.createElement('div'); l.className = 'lid'; l.style.left = x + 'px'; l.style.top = y + 'px'; head.appendChild(l); return l; });
