@@ -91,14 +91,15 @@ body {
 /* Crowd stage: the camera (.world) scales around the front group's feet to "zoom out" */
 .stage { position: absolute; left: 0; right: 0; top: 214px; height: 230px; pointer-events: none; z-index: 1; }
 .world { position: absolute; inset: 0; transform-origin: 201px 222px; }
+.mob { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 1; }
 .front { position: absolute; left: 116px; top: 16px; width: 170.5px; height: 204px; transform-origin: 50% 100%; }
 .rig { position: absolute; inset: 0; transform-origin: 50% 100%; }
 .part { position: absolute; inset: 0; background: url(assets/guests-front.png) 0 0 / 170.5px 204px no-repeat; }
 .front-body { transform-origin: 50% 100%; }
 .lid { position: absolute; width: 3.4px; height: 3.4px; margin: -1.7px 0 0 -1.7px; border-radius: 50%; opacity: 0;
   background: linear-gradient(var(--skin) 0 46%, #2a2420 46% 64%, var(--skin) 64%); }
-.guest { position: absolute; left: 0; top: 0; width: 60px; height: 200px; transform-origin: 50% 100%; will-change: transform, opacity; opacity: 0; }
-.guest svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.guest { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform, opacity; opacity: 0; }
+.guest > div { position: absolute; inset: 0; background: 0 0 / 100% 100% no-repeat; mask-size: 100% 100%; -webkit-mask-size: 100% 100%; }
 
 /* Decorations hung above the crowd, and the confetti canvas on top */
 .deco { position: absolute; left: 0; top: 0; width: 402px; height: 452px; pointer-events: none; z-index: 1; overflow: visible; }
@@ -182,18 +183,6 @@ body {
 }</style>
 </head>
 <body>
-<!-- Shared grain filter: dark specks clipped to each figure, close to the risograph texture of the original art -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <filter id="grain" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
-      <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="7" result="noise"/>
-      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3.2 0 0 0 1.75" result="speck"/>
-      <feComposite in="speck" in2="SourceGraphic" operator="in" result="clipped"/>
-      <feComponentTransfer in="clipped" result="soft"><feFuncA type="linear" slope=".5"/></feComponentTransfer>
-      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="soft"/></feMerge>
-    </filter>
-  </defs>
-</svg>
 
 <div class="layout">
   <div class="phone-slot" id="phoneSlot">
@@ -224,6 +213,18 @@ body {
 
       <div class="stage" id="stage" aria-hidden="true">
         <div class="world" id="world">
+          <svg class="mob" id="mob" viewBox="0 0 402 230">
+            <defs>
+              <filter id="mobFar" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="2.4"/></filter>
+              <filter id="mobNear" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter>
+              <!-- Heads and shoulders only: the mass dissolves into the dark below -->
+              <linearGradient id="mobFade" gradientUnits="userSpaceOnUse" x1="0" y1="60" x2="0" y2="128">
+                <stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
+              </linearGradient>
+              <mask id="mobMask" maskUnits="userSpaceOnUse" x="-240" y="-60" width="900" height="320"><rect x="-240" y="-60" width="900" height="320" fill="url(#mobFade)"/></mask>
+            </defs>
+            <g id="mobRows" mask="url(#mobMask)"></g>
+          </svg>
           <div class="front" id="front"><div class="rig" id="rig"></div></div>
         </div>
       </div>
@@ -270,7 +271,7 @@ body {
   <aside class="rail">
     <div>
       <h1>Guest Count Gathering</h1>
-      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。100人まではゲストが足元からポンと1人ずつ現れ、後半はカメラが引いていきます。175人からは人ではなく、スポットライト・電飾・クラッカーで会場が盛り上がっていきます。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
+      <p class="lead">Moments カメラ作成フロー「How many guests」画面のモーション試作。100人まではゲストが足元からポンと1人ずつ現れ、後半はカメラが引いていきます。175人からは人ではなく、スポットライト・電飾・クラッカー・遠くの人ごみの影で会場が盛り上がっていきます。イラストは常に呼吸・首かしげ・まばたきで動いています。</p>
     </div>
 
     <fieldset class="group">
@@ -302,6 +303,7 @@ body {
         <dt>ノリ（175人〜）</dt><dd>120BPM で上下 2–4px + うなずき</dd>
         <dt>スポットライト</dt><dd>点灯フリッカー 520ms, 首振り ±9° / 5.5s</dd>
         <dt>電飾</dt><dd>中央から描画 700ms, 電球は 45ms 間隔で点灯</dd>
+        <dt>人ごみの影</dt><dd>グレー2列・ぼかし, 下から浮上 + 拍に合わせて上下</dd>
         <dt>クラッカー</dt><dd>左右下から 70 枚ずつ, 重力 760px/s²</dd>
         <dt>ミラーボール</dt><dd>降下 700ms + 反射光 30 粒が横に流れる</dd>
       </dl>
@@ -330,7 +332,7 @@ body {
     { label: '~ 50人', aria: '50人まで', price: 5000, zoom: .88, groove: 0, note: '+5人・少し引く' },
     { label: '~ 100人', aria: '100人まで', price: 10000, zoom: .76, groove: 0, note: '+12人・さらに引く' },
     { label: '~ 175人', aria: '175人まで', price: 20000, zoom: .72, groove: .35, note: 'スポットライト' },
-    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .72, groove: .7, note: '電飾＋クラッカー' },
+    { label: '~ 250人', aria: '250人まで', price: 30000, zoom: .72, groove: .7, note: '電飾＋クラッカー＋人ごみの影' },
     { label: '250人以上', aria: '250人以上', price: null, zoom: .72, groove: 1, note: 'ミラーボール＋紙吹雪' }
   ];
   const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
@@ -350,7 +352,7 @@ body {
   // ---------- Depth model ----------
   // World coordinates (stage-local before the camera zoom). The front four stand with their feet on FRONT_Y;
   // guests further back stand higher (towards HORIZON), smaller and dimmer.
-  const FRONT_Y = 220, HORIZON = 76, BASE_H = 190, CX = 201;
+  const FRONT_Y = 220, HORIZON = 76, CX = 201;
   const feetY = s => HORIZON + (FRONT_Y - HORIZON) * s;
   const fog = s => 0.55 + 0.45 * Math.min(1, (s - 0.25) / 0.65);
 
@@ -395,9 +397,7 @@ body {
   });
 
   const blink = (els, twice) => {
-    const kf = els[0] instanceof SVGElement
-      ? [{ transform: 'scaleY(1)' }, { transform: 'scaleY(.08)', offset: .45 }, { transform: 'scaleY(.08)', offset: .6 }, { transform: 'scaleY(1)' }]
-      : [{ opacity: 0 }, { opacity: 1, offset: .3 }, { opacity: 1, offset: .65 }, { opacity: 0 }];
+    const kf = [{ opacity: 0 }, { opacity: 1, offset: .3 }, { opacity: 1, offset: .65 }, { opacity: 0 }];
     els.forEach(el => {
       el.animate(kf, { duration: 150, easing: 'ease-in-out' });
       if (twice) el.animate(kf, { duration: 150, delay: 230, easing: 'ease-in-out' });
@@ -405,65 +405,51 @@ body {
   };
 
   // ---------- Guest figures ----------
+  // Guests reuse the four original characters as separate cut-outs, each rigged like the front group:
+  // a body layer with the head cut out, and a head layer that tilts at the neck and blinks.
   const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  const C = { cream: '#f7ecd8', blue: '#0f56a2', blue2: '#1d5d93', navy: '#0b2c55', black: '#15161c' };
-  const pick = (r, list) => list[Math.floor(r() * list.length)];
-
-  // Hair is lifted off pure black (and given light strands, as in the original art) so it reads against the black screen
-  const HAIR_FILL = '#1a1c24', STRAND = 'stroke="#6b6e7a" stroke-width=".6" fill="none" stroke-linecap="round"';
-  const HAIR = {
-    bob:   `<path d="M17.5 38c-1-15 6-23 12.5-23s13.5 8 12.5 23l1 16h-7.5l-.5-22c-3-4-8-5-11-1l-.5 23H17z" fill="${HAIR_FILL}"/><path d="M20 50V34c1-9 5-15 10-16M40 50V34c-1-9-5-15-10-16M23 50V31M37 50V31" ${STRAND}/>`,
-    bun:   `<circle cx="36" cy="18" r="5.5" fill="${HAIR_FILL}"/><path d="M33 16c2-3 6-3 7 1" ${STRAND}/><path d="M19.4 33c.4-11 6-15 10.6-15s10.4 4 10.6 13c-4-4-10-6-14-5-3 1-5.5 3.5-7.2 7z" fill="${HAIR_FILL}"/><path d="M22 28c3-6 9-8 15-6" ${STRAND}/>`,
-    short: `<path d="M19.3 33c-.6-12 4.8-16.5 10.7-16.5 6 0 11 4 10.7 13.5-2.5-3.5-7-6.4-12-5.5-3.6.6-7 3.6-9.4 8.5z" fill="${HAIR_FILL}"/><path d="M22 27c2-5 7-8 13-7" ${STRAND}/>`,
-    quiff: `<path d="M19.6 33c-.3-11 4-15.5 9.5-16l1.5-4 2 3.2 2.6-2.4.4 3.6c3.8 2 5 6 4.7 11.6-3-4-7.4-6-12-5-3.6.7-6.4 4-8.7 9z" fill="${HAIR_FILL}"/><path d="M23 25c2-4 6-6 11-5" ${STRAND}/>`,
-    long:  `<path d="M17 40c-1.5-17 6-25 13-25s14.5 8 13 25l2 22H37l-1-30c-3-4-9-4-12 0l-1 30h-8z" fill="${HAIR_FILL}"/><path d="M19 60V38c0-10 5-19 11-21M41 60V38c0-10-5-19-11-21M22 60V32M25 60V27M38 60V32M35 60V27" ${STRAND}/>`,
-    none:  ''
+  // Sprite sizes, head ellipse [cx, cy, rx, ry], neck pivot and eyes, all in the sprite's own px
+  const SPRITES = {
+    girl:  { w: 64, h: 264, e: [35, 28, 28, 28], pivot: [31, 54], eyes: [[29.4, 28.8]],           skin: '#fbefdd' },
+    woman: { w: 80, h: 277, e: [37, 25, 34, 27], pivot: [40, 50], eyes: [[25.5, 20.5], [40, 20.7]], skin: '#f1e9db' },
+    boy:   { w: 85, h: 262, e: [42, 28, 26, 27], pivot: [45, 56], eyes: [[44.5, 33.5]],           skin: '#fbefdd' },
+    man:   { w: 94, h: 302, e: [46, 14, 18, 16], pivot: [50, 30], eyes: [[49, 12.5]],             skin: '#ffefd3' }
   };
+  const SPRITE_PX = 204 / 302; // the tall man is the full 204px height of the front group at depth 1
+  Object.entries(SPRITES).forEach(([name, sp]) => {
+    sp.img = `url(assets/guest-${name}.png)`;
+    const [cx, cy, rx, ry] = sp.e;
+    sp.mask = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${sp.w}' height='${sp.h}' viewBox='0 0 ${sp.w} ${sp.h}'><defs><mask id='m'><rect width='${sp.w}' height='${sp.h}' fill='white'/><ellipse cx='${cx}' cy='${cy}' rx='${rx}' ry='${ry}' fill='black'/></mask></defs><rect width='${sp.w}' height='${sp.h}' fill='white' mask='url(#m)'/></svg>`)}")`;
+  });
+  // Character per guest, mixed so neighbours rarely match (and the first two differ from the front four beside them)
+  const CAST = ['man', 'boy', 'woman', 'girl', 'boy', 'man', 'girl', 'woman'];
 
-  const body = (type, r) => {
-    const tone = pick(r, [C.blue, C.blue, C.blue2, C.navy, C.black]);
-    const shade = tone === C.black ? '#22242c' : C.navy;
-    const legs = (color, w = 4) => `<rect x="${26 - w}" y="140" width="${w}" height="56" fill="${color}"/><rect x="34" y="140" width="${w}" height="56" fill="${color}"/>`;
-    const shoes = '<ellipse cx="23" cy="197" rx="4.5" ry="2.2" fill="#0a0a0c"/><ellipse cx="37" cy="197" rx="4.5" ry="2.2" fill="#0a0a0c"/>';
-    const arms = c => `<path d="M14 70c-5 16-5 38-2 54l5-1c-1-16 0-34 3-50z" fill="${c}"/><path d="M46 70c5 16 5 38 2 54l-5-1c1-16 0-34-3-50z" fill="${c}"/>`;
-    switch (type) {
-      case 'dress': return legs(C.cream, 3) + shoes +
-        `<path d="M21 63c-6 2-7.5 12-7.5 28L8 162h44l-5.5-71c0-16-1.5-26-7.5-28z" fill="${tone}"/>` + arms(shade);
-      case 'sweater': return shoes +
-        `<path d="M15 108h30l1 88H34.5L30 132l-4.5 64H14z" fill="${pick(r, [C.blue, C.blue2, C.navy])}"/>` +
-        '<path d="M20 63c-7 2-8.5 12-8 48h36c.5-36-1-46-8-48z" fill="#f7ecd8"/>' + arms('#e9dcc4');
-      case 'suit': return legs(C.black, 7) + shoes +
-        `<path d="M20 63c-7 2-9 12-9 28l-1 58h40l-1-58c0-16-2-26-9-28l-10 30z" fill="${tone}"/>` +
-        '<path d="M27 64h6v50h-6z" fill="#f7ecd8"/><path d="M27 70h6M27 76h6M27 82h6M27 88h6M27 94h6M27 100h6" stroke="#06070a" stroke-width="1"/>' + arms(shade);
-      default: return legs(pick(r, [C.black, C.navy]), 6) + shoes + // coat
-        `<path d="M20 63c-7 2-9 12-9 28l-2 62h42l-2-62c0-16-2-26-9-28z" fill="${tone}"/>` +
-        `<path d="M24 64l6 22 6-22" fill="none" stroke="${shade}" stroke-width="1.6"/>` + arms(shade);
-    }
-  };
-
-  // The head sits in its own group (pivoting at the neck) and the eyes in another, so both can move independently
-  const personSVG = seed => {
-    const r = rng(seed);
-    const type = pick(r, ['coat', 'dress', 'sweater', 'suit', 'coat', 'dress']);
-    const hair = type === 'suit' ? pick(r, ['short', 'quiff', 'none']) : pick(r, ['bob', 'bun', 'short', 'quiff', 'long']);
-    const cheek = r() < .35 ? '<circle cx="35.5" cy="38" r="2.4" fill="#9fb3d6" opacity=".7"/>' : '';
-    return `<svg viewBox="0 0 60 200"><g filter="url(#grain)">${body(type, r)}</g>` +
-      '<rect x="28" y="40" width="4" height="25" fill="#f7ecd8"/>' +
-      '<g class="hd" style="transform-origin: 30px 47px"><ellipse cx="30" cy="33" rx="10.5" ry="12.5" fill="#f7ecd8"/>' + HAIR[hair] + cheek +
-      '<g class="ey" style="transform-origin: 30px 34px"><circle cx="26.5" cy="34" r=".95" fill="#06070a"/><circle cx="33.5" cy="34" r=".95" fill="#06070a"/></g></g></svg>';
+  const buildGuest = (sp, flip) => {
+    const el = document.createElement('div');
+    el.className = 'guest';
+    el.style.width = sp.w + 'px'; el.style.height = sp.h + 'px';
+    const body = document.createElement('div');
+    body.style.backgroundImage = sp.img;
+    body.style.maskImage = body.style.webkitMaskImage = sp.mask;
+    const head = document.createElement('div');
+    head.style.backgroundImage = sp.img;
+    head.style.clipPath = `ellipse(${sp.e[2]}px ${sp.e[3]}px at ${sp.e[0]}px ${sp.e[1]}px)`;
+    head.style.transformOrigin = `${sp.pivot[0]}px ${sp.pivot[1]}px`;
+    head.style.setProperty('--skin', sp.skin);
+    const lids = sp.eyes.map(([x, y]) => { const l = document.createElement('div'); l.className = 'lid'; l.style.left = x + 'px'; l.style.top = y + 'px'; head.appendChild(l); return l; });
+    el.append(body, head);
+    return { el, head, lids };
   };
 
   const guests = [];
   SLOTS.forEach((list, tier) => list.forEach(([x, s], i) => guests.push({ tier, x, s, seed: tier * 31 + i * 7 + 3 })));
-  guests.forEach(g => {
-    g.el = document.createElement('div');
-    g.el.className = 'guest';
-    g.el.innerHTML = personSVG(g.seed);
-    g.hd = g.el.querySelector('.hd');
-    g.ey = g.el.querySelector('.ey');
+  guests.forEach((g, i) => {
+    g.sp = SPRITES[CAST[i % CAST.length]];
+    g.flip = g.x < CX ? -1 : 1; // the art faces left, so guests on the left are mirrored to face the centre
+    Object.assign(g, buildGuest(g.sp, g.flip));
     const r = rng(g.seed * 13);
-    g.hf = .9 + r() * .16; // height variety
-    g.phase = r() * 6.28; g.period = 3.4 + r() * 2.2; g.amp = 1.5 + r() * 2;
+    g.hf = .95 + r() * .1; // height variety
+    g.phase = r() * 6.28; g.period = 3.4 + r() * 2.2; g.amp = 1.5 + r() * 1.5;
     g.nextBlink = performance.now() + 1000 + r() * 4000;
     g.el.style.zIndex = Math.round(feetY(g.s) * 10);
     g.el.style.filter = `brightness(${fog(g.s).toFixed(2)})`;
@@ -475,8 +461,8 @@ body {
 
   // k: grow factor for the pop-in (0 = not there, 1 = full size), scaled from the feet
   const place = (g, x, s, o, lift = 0, tilt = 0, sy = 1, k = 1) => {
-    const scale = BASE_H * s * g.hf / 200 * k;
-    g.el.style.transform = `translate(${x - 30}px, ${feetY(s) - 200 - lift}px) rotate(${tilt}deg) scale(${scale}, ${scale * sy})`;
+    const scale = SPRITE_PX * s * g.hf * k;
+    g.el.style.transform = `translate(${x - g.sp.w / 2}px, ${feetY(s) - g.sp.h - lift}px) rotate(${tilt}deg) scale(${scale * g.flip}, ${scale * sy})`;
     g.el.style.opacity = o;
     g.cur = { x, s, o, k };
   };
@@ -518,12 +504,12 @@ body {
 
   const idleGuest = (g, now, t) => {
     const on = idleToggle.checked && motionOn();
-    if (!on) { place(g, g.x, g.s, 1); g.hd.style.transform = ''; return; }
+    if (!on) { place(g, g.x, g.s, 1); g.head.style.transform = ''; return; }
     const w = Math.sin(t * Math.PI * 2 / g.period + g.phase);
     const lift = beatLift(t, g.phase) * 4 * g.s * groove;
     place(g, g.x, g.s, 1, lift, w * .6 + groove * 1.5 * Math.sin(Math.PI * BEAT * t + g.phase), 1 + .008 * Math.sin(t * Math.PI * 2 / 4.2 + g.phase));
-    g.hd.style.transform = `rotate(${g.amp * w + groove * 4 * Math.sin(Math.PI * 2 * BEAT * t + g.phase)}deg)`;
-    if (now > g.nextBlink) { blink([g.ey], Math.random() < .2); g.nextBlink = now + rand(2400, 6000); }
+    g.head.style.transform = `rotate(${g.amp * w + groove * 4 * Math.sin(Math.PI * 2 * BEAT * t + g.phase)}deg)`;
+    if (now > g.nextBlink) { blink(g.lids, Math.random() < .2); g.nextBlink = now + rand(2400, 6000); }
   };
 
   // ---------- Main loop ----------
@@ -543,7 +529,7 @@ body {
       if (!a) { if (g.cur.o > 0) idleGuest(g, now, t); continue; }
       const p0 = (now - a.start) / a.dur;
       if (p0 < 0) continue;
-      g.hd.style.transform = '';
+      g.head.style.transform = '';
       if (a.kind === 'in') {
         const p = Math.min(1, p0);
         place(g, g.x, g.s, Math.min(1, a.o0 + p / .35), 0, 0, 1, a.k0 + (1 - a.k0) * spring(p));
@@ -618,6 +604,43 @@ body {
     return { path, len, bulbs };
   });
 
+  // Crowd shadow (250+): a grey mass of distant head-and-shoulder silhouettes behind the guests, edges blurred.
+  // Each row is split into four interleaved groups that bob on different phases, so the mass moves like a crowd.
+  const mobSvg = document.getElementById('mobRows');
+  const MOB_ROWS = [
+    { top: 38, s: .78, color: '#2b2c32', filter: 'mobFar',  step: 9.5, seed: 11, delay: 0 },
+    { top: 50, s: .96, color: '#393a41', filter: 'mobNear', step: 12,  seed: 29, delay: 140 }
+  ];
+  const mobRows = MOB_ROWS.map(row => {
+    const r = rng(row.seed);
+    const outer = document.createElementNS(NS, 'g');
+    outer.setAttribute('filter', `url(#${row.filter})`); outer.setAttribute('opacity', 0);
+    const paths = ['', '', '', ''];
+    let i = 0;
+    for (let x = -170; x < 572; x += row.step * (.75 + r() * .5), i++) {
+      const k = row.s * (.85 + r() * .3);
+      const top = row.top + (r() - .5) * 12;
+      const hx = x, hy = top + 6.5 * k;
+      let d = `M${hx - 5.4 * k} ${hy}a${5.4 * k} ${6.4 * k} 0 1 1 ${10.8 * k} 0a${5.4 * k} ${6.4 * k} 0 1 1 ${-10.8 * k} 0z`; // head
+      if (r() < .3) d += `M${hx + 1 * k} ${top - 1.5 * k}a${3 * k} ${3 * k} 0 1 1 ${6 * k} 0a${3 * k} ${3 * k} 0 1 1 ${-6 * k} 0z`; // bun
+      const sh = hy + 8 * k, w = (10 + r() * 4) * k;
+      d += `M${hx - w} 190V${sh + 6 * k}Q${hx - w} ${sh} ${hx - w + 6 * k} ${sh}H${hx + w - 6 * k}Q${hx + w} ${sh} ${hx + w} ${sh + 6 * k}V190z`; // shoulders
+      if (r() < .12) { // a raised arm, cheering
+        const side = r() < .5 ? -1 : 1, ax = hx + side * (w - 2.5 * k);
+        d += `M${ax - 2.4 * k} ${sh + 4 * k}V${top - 10 * k}a${2.4 * k} ${2.4 * k} 0 0 1 ${4.8 * k} 0V${sh + 4 * k}z`;
+      }
+      paths[i % 4] += d;
+    }
+    const groups = paths.map(d => {
+      const g = document.createElementNS(NS, 'path');
+      g.setAttribute('d', d); g.setAttribute('fill', row.color);
+      outer.appendChild(g);
+      return g;
+    });
+    mobSvg.appendChild(outer);
+    return { ...row, outer, groups, v: 0, target: 0, at: 0 };
+  });
+
   // Canvases: background (mirror-ball reflections) and foreground (confetti)
   const bg = document.getElementById('bgfx').getContext('2d');
   const fx = document.getElementById('fx').getContext('2d');
@@ -671,6 +694,8 @@ body {
     glowBlue.style.opacity = lv >= 3 ? 1 : 0;
     if ((lv >= 2) !== (pl >= 2)) garlandOn(lv >= 2);
     if (lv >= 2 && lv > pl) setTimeout(pop, lv >= 2 && pl < 2 ? 380 : 0);
+    const mobOn = lv >= 2 ? 1 : 0;
+    mobRows.forEach(m => { if (m.target !== mobOn) { m.target = mobOn; m.at = performance.now() + (mobOn ? m.delay : 0); } });
     rain = lv >= 3 ? 1 : 0;
     ballTarget = lv >= 3 ? 1 : 0;
     if (lv >= 3 && pl < 3) ballDrop = performance.now() + 250;
@@ -696,6 +721,14 @@ body {
       const gl = (t * .8) % 1;
       glint.setAttribute('transform', `translate(5 -6) scale(${gl < .15 ? Math.sin(gl / .15 * Math.PI) : 0})`);
     }
+    // Crowd shadow: rises up out of the dark and fades in, then bobs to the beat
+    mobRows.forEach((m, ri) => {
+      if (now >= m.at) m.v += (m.target - m.v) * (1 - Math.exp(-dt * (m.target ? 4 : 6)));
+      if (!on) m.v = m.target;
+      m.outer.setAttribute('opacity', m.v.toFixed(3));
+      m.outer.setAttribute('transform', `translate(0 ${((1 - m.v) * 26).toFixed(2)})`);
+      if (m.v > .01) m.groups.forEach((g, gi) => g.setAttribute('transform', `translate(0 ${on ? (-beatLift(t, gi * .8 + ri * .4) * 2.2 * groove).toFixed(2) : 0})`));
+    });
     // Bulb twinkle
     if (level >= 2) strands.forEach(s => s.bulbs.forEach(b => b.halo.setAttribute('opacity', (on ? .45 + .4 * Math.sin(t * b.speed + b.phase) : .7).toFixed(2))));
 
