@@ -293,6 +293,7 @@ body {
     <div class="spec">
       <div class="group"><span class="label">タイミング（実装メモ）</span></div>
       <dl>
+        <dt>奥行き</dt><dd>奥ほど暗く（明度 1 → .45）+ わずかにぼかす（最大 約0.8px）</dd>
         <dt>出現</dt><dd>足元基点 scale 0 → 1.13 → .98 → 1 / 650ms</dd>
         <dt>不透明度</dt><dd>0 → 1（出現の最初の 35%）</dd>
         <dt>出現の順番</dt><dd>中央から外へ 75ms 間隔</dd>
@@ -381,7 +382,11 @@ body {
   // guests further back stand higher (towards HORIZON), smaller and dimmer.
   const FRONT_Y = 220, HORIZON = 76, CX = 201;
   const feetY = s => HORIZON + (FRONT_Y - HORIZON) * s;
-  const fog = s => 0.55 + 0.45 * Math.min(1, (s - 0.25) / 0.65);
+  // Aerial perspective: further back is darker and very slightly soft. Brightness 1 at the front row (s ≥ .95)
+  // down to about .45 at the back; blur up to ~0.8px on screen, none at the front.
+  const depth = s => Math.max(0, Math.min(1, (0.95 - s) / 0.5)); // 0 front … 1 far back
+  const fog = s => 1 - 0.55 * depth(s);
+  const haze = s => 1.1 * depth(s); // blur in world px
 
   // Slots: [x centre, depth scale]. People only join up to 100; the 100 tier fills the space the zoom-out reveals.
   const SLOTS = [
@@ -515,7 +520,9 @@ body {
     g.nextBlink = performance.now() + 1000 + r() * 4000;
     if (g.kind === 'dog') { g.runner = true; g.home = [g.x, g.s]; }
     g.el.style.zIndex = Math.round(feetY(g.s) * 10);
-    g.el.style.filter = `brightness(${fog(g.s).toFixed(2)})`;
+    // The filter is applied before the element is scaled down, so divide the blur by the guest's scale
+    const blurLocal = haze(g.s) / (SPRITE_PX * g.s * (g.kind ? g.sp.size ?? ANIMAL_SIZE : 1));
+    g.el.style.filter = `brightness(${fog(g.s).toFixed(2)})` + (blurLocal > .05 ? ` blur(${blurLocal.toFixed(2)}px)` : '');
     world.appendChild(g.el);
     g.cur = { x: g.x, s: g.s, o: 0, k: 0 }; // current pose (start point for interrupted moves)
     g.anim = null;
