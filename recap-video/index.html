@@ -470,9 +470,11 @@ button { font: inherit; color: inherit; }
   const filmPhotos = Array.from({ length: FILM_FRAMES }, (_, i) => PHOTOS[Math.round(i * (PHOTOS.length - 1) / (FILM_FRAMES - 1))]);
   strip.innerHTML = [...filmPhotos].reverse().map(p => `<div class="frame"><img src="${p.src}" alt=""></div>`).join('');
   let stripH = 0;
+  // Film speed relative to pulling the whole strip out over the loading time (0.8 = 20% slower)
+  const FILM_SPEED = .8;
   const setStrip = p => {
     stripH = stripH || strip.offsetHeight;
-    strip.style.transform = `translateY(${(p * stripH - stripH).toFixed(1)}px)`;
+    strip.style.transform = `translateY(${((p * FILM_SPEED - 1) * stripH).toFixed(1)}px)`;
   };
 
   // ---- Toast ----
@@ -545,6 +547,8 @@ button { font: inherit; color: inherit; }
       timers.push(setTimeout(() => goto('loading'), reduceMotion.matches ? 900 : 3000));
     } else if (next === 'loading') {
       startLoading();
+    } else if (next === 'done') {
+      setProgress(1); setStrip(1);
     }
   };
 
