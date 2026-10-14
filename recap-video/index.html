@@ -728,10 +728,18 @@ button { font: inherit; color: inherit; }
         $('save').querySelector('span').textContent = `${pct}%`;
         if (label) toast(`動画を保存しています… ${pct}%`, 0);
       });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = `moments-recap.${ext}`;
-      document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      const filename = `moments-recap.${ext}`;
+      // Inside the claude.ai viewer, files go through its downloads capability; opened directly, a plain link works
+      const downloads = window.claude?.use ? await window.claude.use('downloads') : null;
+      if (downloads) {
+        try { await downloads.save({ filename, data: blob }); }
+        catch (e) { toast(e.code === 'declined' ? '保存をキャンセルしました' : '保存できませんでした'); return; }
+      } else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = filename;
+        document.body.append(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      }
       toast('動画を保存しました');
     } catch (e) {
       toast(e.message || '書き出しに失敗しました', 3200);
