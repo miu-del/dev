@@ -114,24 +114,24 @@ button { font: inherit; color: inherit; }
 .recap-title {
   position: absolute; left: 0; right: 0; top: 150px; margin: 0; z-index: 4;
   text-align: center; font: 300 29px/1.1 var(--font-display); letter-spacing: -.005em; font-variation-settings: "opsz" 48;
-  transition: top .9s var(--ease-out-expo);
+  transition: top 1.6s var(--ease-out-expo);
 }
 .recap[data-step="loading"] .recap-title, .recap[data-step="done"] .recap-title { top: 94px; }
 .canister {
   position: absolute; left: 50%; top: 332px; width: 252px; height: 136px; margin-left: -126px; z-index: 3;
   transform: rotate(32deg);
-  transition: top .95s var(--ease-out-expo), transform .95s var(--ease-out-expo);
+  transition: top 1.6s var(--ease-out-expo), transform 1.6s var(--ease-out-expo);
 }
 .recap[data-step="loading"] .canister, .recap[data-step="done"] .canister { top: 176px; transform: rotate(0deg); }
 .canister svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 18px 26px rgba(0,0,0,.6)); }
-.canister-in.enter { animation: canIn 1.05s var(--ease-out-expo) both; }
+.canister-in.enter { animation: canIn 1.6s var(--ease-out-expo) both; }
 @keyframes canIn {
   from { opacity: 0; transform: translateY(46px) scale(.72) rotate(-16deg); filter: blur(6px); }
   55% { opacity: 1; filter: blur(0); }
   to { opacity: 1; transform: none; filter: blur(0); }
 }
 .hub { transform-origin: 0 0; }
-.recap[data-step="loading"] .hub { animation: spin 1.4s linear infinite; }
+.recap[data-step="loading"] .hub { animation: spin 2.6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .recap-info { position: absolute; left: 0; right: 0; top: 560px; margin: 0; text-align: center; font: 400 15px/1.5 var(--font-display); color: #e6e6ea; font-variation-settings: "opsz" 14; transition: opacity .4s ease; }
 .recap-info dl { margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
@@ -148,7 +148,7 @@ button { font: inherit; color: inherit; }
   -webkit-mask-image: linear-gradient(#000 0, #000 62%, transparent 100%); mask-image: linear-gradient(#000 0, #000 62%, transparent 100%);
 }
 .strip-sway { position: absolute; inset: 0; transform-origin: 50% 0; transform: perspective(800px) rotateX(9deg); }
-.recap[data-step="loading"] .strip-sway, .recap[data-step="done"] .strip-sway { animation: sway 3.6s ease-in-out infinite alternate; }
+.recap[data-step="loading"] .strip-sway, .recap[data-step="done"] .strip-sway { animation: sway 5s ease-in-out infinite alternate; }
 @keyframes sway { from { transform: perspective(800px) rotateX(9deg) rotate(-1.1deg); } to { transform: perspective(800px) rotateX(9deg) rotate(1.1deg); } }
 .strip { position: absolute; left: 36px; top: 0; width: 158px; will-change: transform; }
 .frame { width: 158px; height: 140px; margin-bottom: 7px; background: #111; overflow: hidden; }
@@ -398,8 +398,8 @@ button { font: inherit; color: inherit; }
     <fieldset class="group">
       <legend>ローディング時間</legend>
       <div class="range">
-        <input type="range" id="loadSecs" min="10" max="20" step="1" value="14" aria-label="ローディング時間（秒）">
-        <output id="loadSecsOut" for="loadSecs">14s</output>
+        <input type="range" id="loadSecs" min="10" max="20" step="1" value="20" aria-label="ローディング時間（秒）">
+        <output id="loadSecsOut" for="loadSecs">20s</output>
       </div>
     </fieldset>
 
@@ -465,7 +465,10 @@ button { font: inherit; color: inherit; }
 
   // ---- Film strip: newest at the top, so the oldest photo is the first to come out ----
   const strip = $('strip');
-  strip.innerHTML = [...PHOTOS].reverse().map(p => `<div class="frame"><img src="${p.src}" alt=""></div>`).join('');
+  // Fewer frames over the same time = slower film. Pick them evenly across the day, still in time order.
+  const FILM_FRAMES = 6;
+  const filmPhotos = Array.from({ length: FILM_FRAMES }, (_, i) => PHOTOS[Math.round(i * (PHOTOS.length - 1) / (FILM_FRAMES - 1))]);
+  strip.innerHTML = [...filmPhotos].reverse().map(p => `<div class="frame"><img src="${p.src}" alt=""></div>`).join('');
   let stripH = 0;
   const setStrip = p => {
     stripH = stripH || strip.offsetHeight;
@@ -539,7 +542,7 @@ button { font: inherit; color: inherit; }
     if (next === 'intro') {
       [$('canisterIn'), $('recapTitle'), $('recapInfo')].forEach(replay);
       // Hold on the patrone with the album details, then start pulling the film out
-      timers.push(setTimeout(() => goto('loading'), reduceMotion.matches ? 900 : 2200));
+      timers.push(setTimeout(() => goto('loading'), reduceMotion.matches ? 900 : 3000));
     } else if (next === 'loading') {
       startLoading();
     }
