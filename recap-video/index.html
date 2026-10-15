@@ -109,14 +109,17 @@ button { font: inherit; color: inherit; }
 /* ---------- 2–4. Import (patrone → film → ready) ---------- */
 .recap { position: absolute; inset: 0; z-index: 10; background: #1C1C1E; opacity: 0; visibility: hidden; transform: translateY(18px); transition: opacity .35s ease, transform .5s var(--ease-out-expo), visibility 0s .35s; }
 .recap.open { opacity: 1; visibility: visible; transform: none; transition: opacity .35s ease, transform .5s var(--ease-out-expo), visibility 0s; }
-.recap .close { right: 18px; top: 62px; }
+.recap .close { left: 16px; top: 54px; }
+.recap .more { right: 16px; top: 54px; }
+/* Round header buttons, as in the import mock */
+.recap .icon-btn.round { width: 43px; height: 43px; border-radius: 22px; background: #232326; }
 .recap.no-trans, .recap.no-trans * { transition: none !important; }
 .recap-title {
   position: absolute; left: 0; right: 0; top: 150px; margin: 0; z-index: 4;
-  text-align: center; font: 300 29px/1.1 var(--font-display); letter-spacing: -.005em; font-variation-settings: "opsz" 48;
+  text-align: center; font: 300 31px/1.05 var(--font-display); letter-spacing: -.005em; font-variation-settings: "opsz" 48; color: #ece8df;
   transition: top 1.6s var(--ease-out-expo);
 }
-.recap[data-step="loading"] .recap-title, .recap[data-step="done"] .recap-title { top: 94px; }
+.recap[data-step="loading"] .recap-title, .recap[data-step="done"] .recap-title { top: 110px; }
 .canister {
   position: absolute; left: 50%; top: 332px; width: 252px; height: 121px; margin-left: -126px; z-index: 3;
   transform: rotate(32deg);
@@ -145,20 +148,24 @@ button { font: inherit; color: inherit; }
    the 2D canister and strip above stay in place. */
 .stage3d {
   position: absolute; left: 0; top: 0; width: 402px; height: 874px; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .4s ease;
-  -webkit-mask-image: linear-gradient(#000 0, #000 62%, transparent 79%); mask-image: linear-gradient(#000 0, #000 62%, transparent 79%);
+  --fade: 860px;
+  -webkit-mask-image: linear-gradient(#000 0, #000 calc(var(--fade) - 130px), transparent var(--fade)); mask-image: linear-gradient(#000 0, #000 calc(var(--fade) - 130px), transparent var(--fade));
+  transition: opacity .4s ease, --fade .7s var(--ease-out-expo);
 }
 /* Black glow behind the 3D canister: its own layer, so it does not darken what shows through the perforations */
 .glow3d {
   position: absolute; left: 50%; top: 270px; width: 380px; height: 270px; margin-left: -190px; z-index: 2; pointer-events: none; opacity: 0;
   background: radial-gradient(closest-side, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, transparent);
-  transition: top 1.6s var(--ease-out-expo), opacity .4s ease;
+  transition: top 1.6s var(--ease-out-expo), width 1.6s var(--ease-out-expo), height 1.6s var(--ease-out-expo), margin-left 1.6s var(--ease-out-expo), opacity .4s ease;
 }
-.recap[data-step="loading"] .glow3d, .recap[data-step="done"] .glow3d { top: 115px; }
+.recap[data-step="loading"] .glow3d, .recap[data-step="done"] .glow3d { top: 100px; height: 400px; width: 400px; margin-left: -200px; }
+.recap[data-step="done"] .stage3d, .recap[data-step="exit"] .stage3d { --fade: 715px; }
+@property --fade { syntax: '<length>'; inherits: false; initial-value: 860px; }
 .recap.three .stage3d, .recap.three .glow3d { opacity: 1; }
 .recap.three .canister, .recap.three .strip-window { visibility: hidden; }
 /* Exit (after 動画を見る): heading and glow fade while the patrone rolls away */
-.recap[data-step="exit"] .recap-title { top: 94px; color: transparent; transition: color .4s ease; } /* opacity is held by its entrance animation */
-.recap[data-step="exit"] .glow3d { top: 115px; opacity: 0; }
+.recap[data-step="exit"] .recap-title { top: 110px; color: transparent; transition: color .4s ease; } /* opacity is held by its entrance animation */
+.recap[data-step="exit"] .glow3d { top: 100px; height: 400px; width: 400px; margin-left: -200px; opacity: 0; }
 .recap[data-step="exit"] .canister { top: 190px; transform: none; opacity: 0; transition: opacity .5s ease; }
 .recap[data-step="exit"] .strip-window { opacity: 0; transition: opacity .5s ease; }
 .strip-window {
@@ -179,20 +186,22 @@ button { font: inherit; color: inherit; }
 .frame { width: 158px; height: 140px; background: #111; overflow: hidden; border-radius: 2px; }
 .edge { height: 12px; display: flex; align-items: center; justify-content: space-between; font: 500 6.5px/1 var(--font-mono); letter-spacing: .12em; color: #e8913a; opacity: .85; }
 .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.progress { position: absolute; left: 0; right: 0; top: 784px; height: 5px; background: #3a3a40; opacity: 0; transition: opacity .3s ease; }
-.progress i { display: block; height: 100%; width: 100%; background: #fff; transform-origin: 0 50%; transform: scaleX(0); }
+.progress { position: absolute; left: 72px; right: 72px; top: 752px; height: 6px; border-radius: 3px; overflow: hidden; z-index: 4; background: #f4f0e2; opacity: 0; transition: opacity .3s ease, top .7s var(--ease-out-expo); }
+.progress i { display: block; height: 100%; width: 100%; background: #2b34e6; border-radius: 3px; transform-origin: 0 50%; transform: scaleX(0); }
 .recap[data-step="loading"] .progress { opacity: 1; }
+/* Done: the bar moves up between ✕ and … */
+.recap[data-step="done"] .progress { opacity: 1; top: 73px; }
 /* Manual winding: drag down on the patrone / film (or scroll) to pull the film out */
-.wind { position: absolute; left: 40px; right: 40px; top: 150px; height: 560px; z-index: 5; touch-action: none; cursor: grab; display: none; }
+.wind { position: absolute; left: 40px; right: 40px; top: 180px; height: 530px; z-index: 5; touch-action: none; cursor: grab; display: none; }
 .wind.grabbing { cursor: grabbing; }
 .recap.manual[data-step="loading"] .wind, .recap.manual[data-step="done"] .wind { display: block; }
-.wind-hint { position: absolute; left: 0; right: 0; top: 706px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 8px; font: 500 13px/1 var(--font-jp); letter-spacing: .04em; color: #c8c8d0; opacity: 0; transition: opacity .4s ease; pointer-events: none; }
+.wind-hint { position: absolute; left: 0; right: 0; top: 672px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 8px; font: 500 13px/1 var(--font-jp); letter-spacing: .04em; color: #c8c8d0; opacity: 0; transition: opacity .4s ease; pointer-events: none; }
 .recap.manual[data-step="loading"]:not(.touched) .wind-hint { opacity: 1; transition-delay: 1.2s; }
 .wind-hint svg { animation: nudgeDown 1.4s ease-in-out infinite; }
 @keyframes nudgeDown { 0%, 100% { transform: translateY(-3px); opacity: .5; } 50% { transform: translateY(4px); opacity: 1; } }
 .watch {
-  position: absolute; left: 50%; top: 738px; width: 258px; height: 58px; margin-left: -129px; z-index: 4;
-  border-radius: 10px; border: 1px solid #5b5bff; background: linear-gradient(180deg, #3434f2, #2121c4); color: #fff;
+  position: absolute; left: 16px; right: 16px; top: 726px; height: 59px; z-index: 4;
+  border-radius: 14px; border: 1px solid #4b52ff; background: linear-gradient(180deg, #2f37ea, #1d22b8); color: #fff;
   font: 700 16px/1 var(--font-jp); letter-spacing: .04em; cursor: pointer;
   opacity: 0; visibility: hidden; transform: translateY(14px) scale(.96);
   transition: opacity .45s ease, transform .7s var(--ease-out-expo), visibility 0s .45s;
@@ -312,10 +321,13 @@ button { font: inherit; color: inherit; }
 
       <!-- 2–4. Import: patrone → film coming out → ready -->
       <section class="recap manual" id="recap" data-step="intro" aria-label="振り返り動画を作成中">
-        <button class="icon-btn close" type="button" data-close aria-label="閉じる">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="m2 2 12 12M14 2 2 14"/></svg>
+        <button class="icon-btn round close" type="button" data-close aria-label="閉じる">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="m2 2 12 12M14 2 2 14"/></svg>
         </button>
-        <h2 class="recap-title" id="recapTitle">importing all<br>the pictures</h2>
+        <button class="icon-btn round more" type="button" aria-label="その他">
+          <svg width="17" height="4" viewBox="0 0 18 4" fill="#fff"><circle cx="2" cy="2" r="1.8"/><circle cx="9" cy="2" r="1.8"/><circle cx="16" cy="2" r="1.8"/></svg>
+        </button>
+        <h2 class="recap-title" id="recapTitle">Importing all<br>pictures</h2>
 
         <div class="wind" id="wind" aria-hidden="true"></div>
         <div class="wind-hint" aria-hidden="true">
@@ -512,9 +524,10 @@ button { font: inherit; color: inherit; }
   let manual = true, pulled = 0, wind = null;
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
   const setPulled = p => {
-    pulled = Math.min(1, Math.max(0, p));
+    // No upper limit: past 1 the 3D film loops (its frames repeat), so it can keep running for as long as the import takes
+    pulled = Math.max(0, p);
     R3.pulled = pulled; R3.travelPx = travel();
-    setStrip(pulled);
+    setStrip(Math.min(1, pulled));
   };
   const coast = v => {
     let last = performance.now();
@@ -522,7 +535,7 @@ button { font: inherit; color: inherit; }
       const dt = now - last; last = now;
       setPulled(pulled + v * dt / travel());
       v *= Math.pow(.84, dt / 16);
-      if (Math.abs(v) > .01 && pulled > 0 && pulled < 1) filmRaf = requestAnimationFrame(tick);
+      if (Math.abs(v) > .01 && pulled > 0) filmRaf = requestAnimationFrame(tick);
     };
     filmRaf = requestAnimationFrame(tick);
   };
@@ -611,11 +624,11 @@ button { font: inherit; color: inherit; }
     } else if (next === 'done') {
       setProgress(1);
       if (!wasOpen) setPulled(1);
-      // Auto film keeps coming out at the same pace after the import is done, until it is all out
+      // Auto film keeps running at the same pace after the import is done (looping) until 動画を見る
       if (!manual) {
         const rate = AUTO_FILM / ($('loadSecs').value * 1000);
         let last = performance.now();
-        const feed = now => { setPulled(pulled + rate * (now - last)); last = now; if (pulled < 1) filmRaf = requestAnimationFrame(feed); };
+        const feed = now => { setPulled(pulled + rate * (now - last)); last = now; filmRaf = requestAnimationFrame(feed); };
         filmRaf = requestAnimationFrame(feed);
       }
     } else if (next === 'exit') {
@@ -701,8 +714,12 @@ const canvas = document.getElementById('stage3d');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 // Five photos → five frames; the film hangs almost straight down instead of curling at the camera
-FILM.frames = 5;
+// Ten frames = the five photos twice, so the film can loop: once the leader is well out of view,
+// winding back by five frames shows exactly the same strip.
+FILM.frames = 10;
 FILM.length = FILM.leader + FILM.frames * FILM.pitch;
+const LOOP = 5 * FILM.pitch, LOOP_FROM = 4;
+const filmOut = units => (units > LOOP_FROM + LOOP ? LOOP_FROM + ((units - LOOP_FROM) % LOOP) : units);
 FILM.curl = 0.03;
 
 const W = 402, H = 874, FOV = 22;
@@ -732,15 +749,22 @@ await canister.userData.ready;
 applyStipple(canister);
 scene.add(canister);
 const spin = canister.getObjectByName('Spin');
+// Lean the film a little down-left as it leaves the slot (turned about the slot, in the film's own plane)
+const FILM_SKEW = -0.3;
+{
+  const film = canister.getObjectByName('Film'), slot = new THREE.Vector3(-0.2, 0, -0.53), axis = new THREE.Vector3(0, 0, 1);
+  film.rotation.z = FILM_SKEW;
+  film.position.copy(slot).sub(slot.clone().applyAxisAngle(axis, FILM_SKEW));
+}
 
 // Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
 const HERO_Q = new THREE.Quaternion().setFromEuler(HERO_POSE.rotation);
 const HERO_POS = toWorld(201, 400);
 // Winding pose: lying on its side, then tipped so it is not dead level — left (plain) end higher, the spool end on the right
 // turned toward the viewer (~25°), top tipped slightly toward the camera. The film hangs from the cartridge, so it runs down-left.
-const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.15, -0.44, -0.22))
+const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, -0.28, -0.03))
   .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, Math.PI / 2)));
-const LEVEL_POS = toWorld(201, 250);
+const LEVEL_POS = toWorld(204, 292);
 const expo = t => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 const clamp01 = t => Math.min(Math.max(t, 0), 1);
 const q = new THREE.Quaternion(), p = new THREE.Vector3();
@@ -768,7 +792,7 @@ const frame = now => {
   spin.rotation.y = -roll / 0.5;
   canvas.style.opacity = x ? String(1 - clamp01((x - 0.55) / 0.45)) : '';
   // Film: the same px travel the 2D strip used, so the tuned speeds carry over
-  canister.userData.setFilmOut(S.pulled * S.travelPx / PX * (1 - (1 - (1 - clamp01(x / 0.3)) ** 3)));
+  canister.userData.setFilmOut(filmOut(S.pulled * S.travelPx / PX) * (1 - clamp01(x / 0.3)) ** 3);
   renderer.render(scene, camera);
   if (!recap.classList.contains('three')) recap.classList.add('three');
 };
