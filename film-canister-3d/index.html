@@ -119,8 +119,6 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 
     <div class="group">
       <span>Look</span>
-      <label class="row">イラスト風の粒子 <input type="checkbox" id="stipple" checked></label>
-      <label class="row">粒子サイズ <input type="range" id="grain" min="1" max="4" step="0.5" value="1.5"></label>
       <label class="row">速度 <input type="range" id="speed" min="0.25" max="2" step="0.05" value="1"></label>
       <div class="seg" id="bgs">
         <button data-bg="light" aria-pressed="true">Light</button>
@@ -138,7 +136,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
         <button id="dl-png">PNG<small>透過 · 2x</small></button>
         <button id="dl-glb-file">同梱GLB<small>film-canister.glb</small></button>
       </div>
-      <p class="note">GLBには Idle / Spin / Open / Pull / Feed のアニメーションクリップと、いま入れているコマ画像が入ります。Pull はモーフターゲットで再生します。イラスト風の粒子はビューア側のシェーダーなので書き出しには含まれません。</p>
+      <p class="note">GLBには Idle / Spin / Open / Pull / Feed のアニメーションクリップと、いま入れているコマ画像が入ります。Pull と Feed はモーフターゲットで再生します。</p>
     </div>
   </aside>
 </div>
@@ -157,7 +155,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
 import {
   createFilmCanister, createClips, bakeFilmMorphs, pullCurve, HERO_POSE, DIM, FILM, PULL_DURATION, FEED_SECONDS_PER_FRAME,
-  DEFAULT_LABEL, DEFAULT_FRAMES, applyStipple, stippleUniforms,
+  DEFAULT_LABEL, DEFAULT_FRAMES,
 } from './canister.js';
 
 // The label is drawn on a canvas, so the title font must be ready first
@@ -210,7 +208,6 @@ await canister.userData.ready;
 const spin = canister.getObjectByName('Spin');
 const capTop = canister.getObjectByName('CapTop');
 scene.add(canister);
-applyStipple(canister);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -362,8 +359,6 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // ---------- look controls ----------
-document.getElementById('stipple').addEventListener('change', e => { stippleUniforms.uStipple.value = e.target.checked ? 1 : 0; });
-document.getElementById('grain').addEventListener('input', e => { stippleUniforms.uStippleSize.value = +e.target.value; });
 document.getElementById('speed').addEventListener('input', e => { speed = +e.target.value; });
 document.getElementById('bgs').addEventListener('click', e => {
   const b = e.target.closest('button[data-bg]');
@@ -403,7 +398,7 @@ document.getElementById('frames-reset').addEventListener('click', async () => {
 });
 
 // ---------- export ----------
-// Export a clean copy (no stipple shader hook, hero pose on the root) so the file is engine-agnostic.
+// Export a fresh copy with the hero pose on the root.
 async function exportModel({ filmOut = 0, bake = false } = {}) {
   const model = createFilmCanister({ ...source, filmOut });
   await model.userData.ready;
@@ -455,7 +450,6 @@ window.__canister = {
   glb: async () => toB64(await buildGLB()),
   usdz: async () => toB64((await buildUSDZ()).buffer),
   play, pose, setBg: bg => document.querySelector(`#bgs [data-bg="${bg}"]`).click(),
-  stipple: on => { stippleUniforms.uStipple.value = on ? 1 : 0; },
   freeze: (name, t) => { play(name); clock = t; speed = 0; },
   setFilmRest: v => { filmRest = v; },
   ready: true,

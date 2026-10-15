@@ -435,7 +435,6 @@ export function createFilmCanister({ label = DEFAULT_LABEL, frames = DEFAULT_FRA
     name: 'FilmStrip', map: filmTex, emissiveMap: filmTex, emissive: '#ffffff', emissiveIntensity: 0.28,
     roughness: 0.32, metalness: 0, side: THREE.DoubleSide, alphaTest: 0.5,
   });
-  filmMat.userData.noStipple = true; // keep the photos clean
   const filmGeo = makeFilmGeometry();
   const film = new THREE.Mesh(filmGeo, filmMat);
   film.name = 'Film';
@@ -446,7 +445,6 @@ export function createFilmCanister({ label = DEFAULT_LABEL, frames = DEFAULT_FRA
   const feedMat = filmMat.clone();
   feedMat.map = feedMat.emissiveMap = null; // gets its own repeating texture in setFrames
   feedMat.name = 'FilmFeedStrip';
-  feedMat.userData.noStipple = true;
   const feed = new THREE.Mesh(new THREE.BufferGeometry(), feedMat);
   feed.name = 'FilmFeed';
   feed.frustumCulled = false;
@@ -666,37 +664,4 @@ export function createClips(model) {
     ]));
   }
   return clips;
-}
-
-// ---------- optional illustration shading ----------
-// Screen-space stipple like the source art: black specks in shadow, white specks in highlights.
-// Viewer-only (a shader tweak), so it is not part of the GLB.
-export const stippleUniforms = {
-  uStipple: { value: 1 },
-  uStippleSize: { value: 1.5 },
-};
-
-export function applyStipple(object) {
-  object.traverse(o => {
-    if (!o.isMesh) return;
-    const m = o.material;
-    if (m.userData.stipple || m.userData.noStipple) return;
-    m.userData.stipple = true;
-    m.onBeforeCompile = shader => {
-      Object.assign(shader.uniforms, stippleUniforms);
-      shader.fragmentShader = shader.fragmentShader
-        .replace('void main() {', 'uniform float uStipple;\nuniform float uStippleSize;\nvoid main() {')
-        .replace('#include <dithering_fragment>', `#include <dithering_fragment>
-        if (uStipple > 0.0) {
-          float l = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
-          vec2 cell = floor(gl_FragCoord.xy / uStippleSize);
-          float n = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
-          float dark = smoothstep(0.32, 0.02, l) * 0.85 * uStipple;
-          float lite = smoothstep(0.45, 0.95, l) * 0.7 * uStipple;
-          if (n < dark) gl_FragColor.rgb *= 0.12;
-          else if (n > 1.0 - lite) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), 0.8);
-        }`);
-    };
-    m.needsUpdate = true;
-  });
 }
