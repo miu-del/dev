@@ -111,6 +111,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
       <span>Film</span>
       <label class="file">コマの画像を選ぶ<small id="frames-count">サンプル 3枚</small><input type="file" id="frames-in" accept="image/*" multiple></label>
       <label class="file">ラベル画像を選ぶ<small id="label-name">label.jpg</small><input type="file" id="label-in" accept="image/*"></label>
+      <label class="row">ネガにする <input type="checkbox" id="negative" checked></label>
       <label class="row">縦長の写真は横倒しで入れる <input type="checkbox" id="sideways" checked></label>
       <button id="frames-reset">サンプル画像に戻す</button>
       <p class="note">コマは6つ。画像が足りない分は繰り返して埋めます。横倒しは実物のフィルムと同じ入り方で、オフにすると正立のまま中央を切り抜きます。</p>
@@ -203,7 +204,7 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // What goes on the label and in the frames; exports reuse the same sources
-const source = { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES, fit: 'auto' };
+const source = { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES, fit: 'auto', negative: true };
 const canister = createFilmCanister(source);
 await canister.userData.ready;
 const spin = canister.getObjectByName('Spin');
@@ -379,6 +380,10 @@ labelIn.addEventListener('change', async () => {
 document.getElementById('sideways').addEventListener('change', e => {
   source.fit = e.target.checked ? 'auto' : 'cover';
   canister.userData.setFrames(source.frames, { fit: source.fit });
+});
+document.getElementById('negative').addEventListener('change', e => {
+  source.negative = e.target.checked;
+  canister.userData.setFrames(source.frames, { negative: source.negative });
 });
 document.getElementById('frames-reset').addEventListener('click', async () => {
   Object.assign(source, { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES });

@@ -41,8 +41,11 @@ FILM.pullOut = FILM.leader + 2.05 * FILM.pitch;
 
 export const COLORS = {
   metal: '#141418',
-  filmBase: '#0e0d0c',
+  filmBase: '#0e0d0c',      // positive strip
   edgePrint: '#f0a640',
+  negBase: '#b8602a',       // colour-negative orange mask (also what clear film looks like)
+  negShadow: '#3d1d0b',     // densest point on the negative, so blacks stay brown
+  negPrint: '#3a1b0a',
 };
 
 const asset = name => new URL(`./assets/${name}`, import.meta.url).href;
@@ -136,7 +139,7 @@ const sizeOf = img => [img.naturalWidth || img.videoWidth || img.width, img.natu
 // The artwork's width spans the label length, so "Moments" reads from the CapTop end to the spool end.
 // The art is centred on the side facing the camera and mirrored around the back to fill the wrap;
 // the seam lands under the Lip.
-const LABEL_FOCUS = 0.34; // fraction of the artwork's height that faces the camera (between title and copy)
+const LABEL_FOCUS = 0.47; // fraction of the artwork's height that faces the camera (between title and copy)
 
 export function drawLabel(canvas, img) {
   const H = canvas.height, W = canvas.width;
@@ -203,13 +206,14 @@ function filmOutline(ctx, P, H) {
 
 // images: array of loaded image sources; they repeat if there are fewer than FILM.frames.
 // fit: 'auto' turns portrait shots sideways (as they sit on real film), 'cover' always crops upright.
-export function drawFilmStrip(canvas, images = [], { fit = 'auto', label = 'MOMENTS 400' } = {}) {
+// negative: true draws a developed colour negative (inverted frames on the orange mask), false a black positive strip.
+export function drawFilmStrip(canvas, images = [], { fit = 'auto', negative = true, label = 'MOMENTS 400' } = {}) {
   const P = FILM.pxPerUnit, W = canvas.width, H = canvas.height;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   filmOutline(ctx, P, H);
-  ctx.fillStyle = COLORS.filmBase;
+  ctx.fillStyle = negative ? COLORS.negBase : COLORS.filmBase;
   ctx.fill();
   ctx.clip();
 
@@ -227,17 +231,28 @@ export function drawFilmStrip(canvas, images = [], { fit = 'auto', label = 'MOME
     if (img) {
       const [iw, ih] = sizeOf(img);
       const sideways = fit === 'auto' && ih > iw;
+      ctx.save();
       ctx.translate(fx + fw / 2, fy + fh / 2);
       if (sideways) ctx.rotate(Math.PI / 2); // photo "up" points toward the cartridge
       const bw = sideways ? fh : fw, bh = sideways ? fw : fh;
       const s = Math.max(bw / iw, bh / ih);
       ctx.drawImage(img, -iw * s / 2, -ih * s / 2, iw * s, ih * s);
+      ctx.restore();
+    }
+    if (negative) {
+      // invert, tint with the orange mask, then cap the density so shadows read as brown, not black
+      for (const [op, color] of [['difference', '#ffffff'], ['multiply', COLORS.negBase], ['lighten', COLORS.negShadow]]) {
+        ctx.globalCompositeOperation = op;
+        ctx.fillStyle = color;
+        ctx.fillRect(fx, fy, fw, fh);
+      }
+      ctx.globalCompositeOperation = 'source-over';
     }
     ctx.restore();
   }
 
   // Edge printing between the perforations and the edge (both sides, like real stock)
-  ctx.fillStyle = COLORS.edgePrint;
+  ctx.fillStyle = negative ? COLORS.negPrint : COLORS.edgePrint;
   ctx.font = `500 ${Math.round(0.06 * P)}px "JetBrains Mono", ui-monospace, Menlo, monospace`;
   ctx.textBaseline = 'middle';
   const topY = (FILM.perfEdge / 2) * P, botY = H - topY;
@@ -352,13 +367,14 @@ export function pullCurve(t) {
 //   label   URL or image for the wrap (defaults to assets/label.jpg)
 //   frames  URLs or images for the film frames (defaults to the sample photos); repeats to fill FILM.frames
 //   fit     'auto' | 'cover'  (see drawFilmStrip)
+//   negative true = colour negative (default), false = black positive strip
 //   filmOut initial length of film outside the cartridge
 // Returns the root Group. Its userData holds the runtime API:
 //   ready                 Promise that resolves once label + frames are drawn
 //   setFilmOut(units)     pull the film out (0 … FILM.length); FILM.pullOut is a good "fully out"
-//   setFrames(list, opt)  redraw the frames with new images → Promise
+//   setFrames(list, opt)  redraw the frames with new images (opt: { fit, negative }) → Promise
 //   setLabel(src)         swap the wrap artwork → Promise
-export function createFilmCanister({ label = DEFAULT_LABEL, frames = DEFAULT_FRAMES, fit = 'auto', filmOut = 0 } = {}) {
+export function createFilmCanister({ label = DEFAULT_LABEL, frames = DEFAULT_FRAMES, fit = 'auto', negative = true, filmOut = 0 } = {}) {
   const root = new THREE.Group();
   root.name = 'FilmCanister';
   const spin = new THREE.Group();
@@ -438,9 +454,11 @@ export function createFilmCanister({ label = DEFAULT_LABEL, frames = DEFAULT_FRA
     filmGeo.attributes.normal.needsUpdate = true;
     film.visible = units > 0.001;
   };
+  const stripOpts = { fit, negative };
   const setFrames = async (list, opt) => {
+    Object.assign(stripOpts, opt); // fit / negative stick for later calls
     const imgs = await Promise.all(list.map(loadImage));
-    drawFilmStrip(filmTex.image, imgs, { fit, ...opt });
+    drawFilmStrip(filmTex.image, imgs, stripOpts);
     filmTex.needsUpdate = true;
   };
   const setLabel = async src => {

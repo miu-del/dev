@@ -40,6 +40,7 @@ import { createFilmCanister, FILM } from './canister.js';
 const canister = createFilmCanister({
   frames: ['/photos/a.jpg', '/photos/b.jpg', '/photos/c.jpg'], // URL / <img> / canvas / ImageBitmap
   fit: 'auto',          // 'auto' = 縦長は横倒し（実物のフィルムと同じ） / 'cover' = 正立で切り抜き
+  negative: true,       // true = カラーネガ（オレンジベースに反転像） / false = 黒いポジのストリップ
   // label: '/my-label.jpg',
 });
 await canister.userData.ready;
