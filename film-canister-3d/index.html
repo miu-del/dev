@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Film Canister 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=Fraunces:opsz,wght@9..144,400&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Same dark shell as camera-filter-animation: stage on the left, control rail on the right. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b12;
+  --rail: #14141d;
+  --rail-line: #26263a;
+  --ink: #ececf3;
+  --ink-dim: #9a9ab0;
+  --accent: #6d6dff;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-jp: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font-family: var(--font-jp); font-size: 14px; }
+.layout {
+  min-height: 100%; box-sizing: border-box; padding: 24px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 32px;
+}
+.stage {
+  position: relative; width: min(640px, 100%); aspect-ratio: 1;
+  border-radius: 28px; overflow: hidden; background: #f3f1ec;
+  box-shadow: 0 0 0 1px var(--rail-line), 0 40px 80px -30px rgba(0,0,0,.8);
+  touch-action: none;
+}
+.stage[data-bg="dark"] { background: #0d0d14; }
+.stage[data-bg="blue"] { background: #1238e6; }
+.stage[data-bg="clear"] {
+  background: repeating-conic-gradient(#2a2a36 0 25%, #1f1f29 0 50%) 0 0 / 24px 24px;
+}
+.stage canvas { display: block; width: 100%; height: 100%; }
+.hint {
+  position: absolute; left: 16px; bottom: 14px; font: 11px var(--font-mono);
+  color: rgba(0,0,0,.45); pointer-events: none;
+}
+.stage[data-bg="dark"] .hint, .stage[data-bg="blue"] .hint, .stage[data-bg="clear"] .hint { color: rgba(255,255,255,.5); }
+
+.rail {
+  width: min(300px, 100%); box-sizing: border-box; background: var(--rail);
+  border: 1px solid var(--rail-line); border-radius: 20px; padding: 20px;
+  display: grid; gap: 22px;
+}
+.rail h1 { margin: 0; font: 400 26px/1.1 var(--font-display); letter-spacing: -.01em; }
+.rail h1 + p { margin: 6px 0 0; color: var(--ink-dim); font-size: 12px; line-height: 1.6; }
+.group { display: grid; gap: 8px; }
+.group > span { font: 500 11px var(--font-mono); color: var(--ink-dim); letter-spacing: .06em; text-transform: uppercase; }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+button {
+  font: 500 13px var(--font-jp); color: var(--ink); background: #1c1c28;
+  border: 1px solid var(--rail-line); border-radius: 10px; padding: 9px 10px; cursor: pointer; text-align: left;
+}
+button:hover { border-color: #3a3a55; }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+button small { display: block; font: 10px var(--font-mono); color: inherit; opacity: .65; margin-top: 2px; }
+.seg { display: flex; gap: 4px; }
+.seg button { flex: 1; text-align: center; padding: 7px 4px; font-size: 12px; }
+label.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+input[type="range"] { width: 130px; accent-color: var(--accent); }
+input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+.dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dl button { text-align: center; }
+.note { margin: 0; color: var(--ink-dim); font-size: 11px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="stage" id="stage" data-bg="light">
+    <span class="hint">drag to orbit · double-click to reset</span>
+  </div>
+
+  <aside class="rail">
+    <div>
+      <h1>Film Canister</h1>
+      <p>「Moments」フィルム缶の3Dモデル。UIアニメーション用のプリセットとGLB / USDZ書き出し。</p>
+    </div>
+
+    <div class="group">
+      <span>Animation</span>
+      <div class="btns" id="anims">
+        <button data-anim="idle" aria-pressed="true">ふわふわ<small>Idle · loop</small></button>
+        <button data-anim="spin">くるっと回転<small>Spin · loop</small></button>
+        <button data-anim="enter">転がって登場<small>Roll in · 1.4s</small></button>
+        <button data-anim="tap">タップ反応<small>Tap · 0.6s</small></button>
+        <button data-anim="open">フタが開く<small>Open · 1.6s</small></button>
+        <button data-anim="still">静止<small>Hero pose</small></button>
+      </div>
+    </div>
+
+    <div class="group">
+      <span>Look</span>
+      <label class="row">イラスト風の粒子 <input type="checkbox" id="stipple" checked></label>
+      <label class="row">粒子サイズ <input type="range" id="grain" min="1" max="4" step="0.5" value="1.5"></label>
+      <label class="row">速度 <input type="range" id="speed" min="0.25" max="2" step="0.05" value="1"></label>
+      <div class="seg" id="bgs">
+        <button data-bg="light" aria-pressed="true">Light</button>
+        <button data-bg="dark">Dark</button>
+        <button data-bg="blue">Blue</button>
+        <button data-bg="clear">透過</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <span>Export</span>
+      <div class="dl">
+        <button id="dl-glb">GLB<small>web · Spline · Blender</small></button>
+        <button id="dl-usdz">USDZ<small>iOS · RealityKit</small></button>
+        <button id="dl-png">PNG<small>透過 · 2x</small></button>
+        <button id="dl-glb-file">同梱GLB<small>film-canister.glb</small></button>
+      </div>
+      <p class="note">GLBには Idle / Spin / Open のアニメーションクリップが入っています。イラスト風の粒子はビューア側のシェーダーなので書き出しには含まれません（ラベルの印刷粒子はテクスチャに焼き込み済み）。</p>
+    </div>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
+import { createFilmCanister, createClips, HERO_POSE, DIM, applyStipple, stippleUniforms } from './canister.js';
+
+// The label is drawn on a canvas, so the title font must be ready first
+await Promise.all([
+  document.fonts.load('500 100px "Cormorant Garamond"'),
+]).catch(() => {});
+
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+
+const camera = new THREE.PerspectiveCamera(22, 1, 0.1, 100);
+const CAM_HOME = new THREE.Vector3(0, 0.6, 8.6);
+camera.position.copy(CAM_HOME);
+
+const key = new THREE.DirectionalLight('#fff6ea', 2.6);
+key.position.set(-3, 4, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.left = key.shadow.camera.bottom = -2;
+key.shadow.camera.right = key.shadow.camera.top = 2;
+key.shadow.radius = 6;
+scene.add(key);
+const rim = new THREE.DirectionalLight('#bcd0ff', 1.4);
+rim.position.set(3, 1, -3);
+scene.add(rim);
+scene.add(new THREE.HemisphereLight('#ffffff', '#30304a', 0.35));
+
+// Soft contact shadow under the floating canister
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.16 }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -1.25;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const canister = createFilmCanister();
+const spin = canister.getObjectByName('Spin');
+const capTop = canister.getObjectByName('CapTop');
+scene.add(canister);
+applyStipple(canister);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.minDistance = 4;
+controls.maxDistance = 12;
+renderer.domElement.addEventListener('dblclick', () => { camera.position.copy(CAM_HOME); controls.target.set(0, 0, 0); });
+
+function resize() {
+  const { width, height } = stage.getBoundingClientRect();
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+// ---------- animation presets ----------
+// Each preset is f(t seconds) → pose. Poses are written straight to the three nodes the GLB exposes.
+const ease = {
+  outExpo: t => (t >= 1 ? 1 : 1 - 2 ** (-10 * t)),
+  outBack: (t, s = 1.7) => 1 + (s + 1) * (t - 1) ** 3 + s * (t - 1) ** 2,
+  inOut: t => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
+  // damped spring, settles to 1
+  spring: (t, k = 9, d = 5) => 1 - Math.exp(-d * t) * Math.cos(k * t),
+};
+const clamp01 = t => Math.min(Math.max(t, 0), 1);
+const H = HERO_POSE.rotation;
+const capY = DIM.length / 2;
+
+function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, capLift = 0, capTilt = 0 } = {}) {
+  canister.position.set(x, y, 0);
+  canister.rotation.set(rx, ry, rz);
+  canister.scale.setScalar(s);
+  spin.rotation.y = spinY;
+  capTop.position.y = capY + capLift;
+  capTop.position.z = capLift * 0.12;
+  capTop.rotation.x = capTilt;
+}
+
+const presets = {
+  still: { loop: false, dur: 0, at: () => pose() },
+  idle: {
+    loop: true, dur: 4,
+    at: t => {
+      const p = (t / 4) * Math.PI * 2;
+      pose({ y: Math.sin(p) * 0.06, rx: H.x + Math.sin(p) * 0.04, ry: H.y + Math.sin(p + 1) * 0.05, rz: H.z + Math.cos(p) * 0.03 });
+    },
+  },
+  spin: {
+    loop: true, dur: 3,
+    at: t => pose({ spinY: (t / 3) * Math.PI * 2, y: Math.sin((t / 3) * Math.PI * 2) * 0.03 }),
+  },
+  enter: {
+    loop: false, dur: 1.4,
+    at: t => {
+      const k = ease.outExpo(clamp01(t / 1.1));
+      const settle = ease.spring(clamp01(t / 1.4) * 1.4, 10, 6);
+      // rolls in from the left: travel distance / radius = rotation
+      const x = (1 - k) * -4.5;
+      pose({ x, y: (1 - k) * -0.4, rz: H.z + (1 - settle) * 0.25, spinY: x / DIM.radius, s: 0.85 + 0.15 * k });
+    },
+  },
+  tap: {
+    loop: false, dur: 0.6,
+    at: t => {
+      const u = clamp01(t / 0.6);
+      // quick squash, then spring back with a small overshoot
+      const s = u < 0.15 ? 1 - 0.08 * (u / 0.15) : 0.92 + 0.08 * ease.spring((u - 0.15) / 0.85 * 1.1, 14, 6);
+      pose({ s, rz: H.z + Math.sin(u * Math.PI) * 0.06 * (1 - u), spinY: ease.outBack(u) * 0.35 });
+    },
+  },
+  open: {
+    loop: false, dur: 1.6,
+    at: t => {
+      let lift = 0, tilt = 0;
+      if (t < 0.18) lift = -0.02 * (t / 0.18);                       // press
+      else if (t < 0.45) { const u = ease.outBack((t - 0.18) / 0.27, 2.2); lift = -0.02 + 0.44 * u; tilt = 0.35 * u; }
+      else if (t < 1.2) { lift = 0.42; tilt = 0.35; }
+      else { const u = ease.inOut(clamp01((t - 1.2) / 0.25)); lift = 0.42 * (1 - u); tilt = 0.35 * (1 - u); }
+      pose({ capLift: lift, capTilt: tilt, y: lift > 0 ? -lift * 0.05 : 0 });
+    },
+  },
+};
+
+let current = 'idle', t0 = performance.now(), speed = 1, clock = 0, last = performance.now();
+function play(name) {
+  current = name;
+  clock = 0;
+  document.querySelectorAll('#anims button').forEach(b => b.setAttribute('aria-pressed', b.dataset.anim === name));
+}
+document.getElementById('anims').addEventListener('click', e => {
+  const b = e.target.closest('button[data-anim]');
+  if (b) play(b.dataset.anim);
+});
+renderer.domElement.addEventListener('click', () => { if (current !== 'idle' && current !== 'spin') return; play('tap'); });
+
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  clock += dt * speed;
+  const p = presets[current];
+  if (p.loop) p.at(clock % p.dur);
+  else {
+    p.at(Math.min(clock, p.dur));
+    // one-shots fall back to idle so the stage never freezes mid-pose
+    if (current !== 'still' && clock > p.dur + 0.5) play('idle');
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- look controls ----------
+document.getElementById('stipple').addEventListener('change', e => { stippleUniforms.uStipple.value = e.target.checked ? 1 : 0; });
+document.getElementById('grain').addEventListener('input', e => { stippleUniforms.uStippleSize.value = +e.target.value; });
+document.getElementById('speed').addEventListener('input', e => { speed = +e.target.value; });
+document.getElementById('bgs').addEventListener('click', e => {
+  const b = e.target.closest('button[data-bg]');
+  if (!b) return;
+  stage.dataset.bg = b.dataset.bg;
+  ground.visible = b.dataset.bg !== 'clear';
+  document.querySelectorAll('#bgs button').forEach(x => x.setAttribute('aria-pressed', x === b));
+});
+
+// ---------- export ----------
+// Export a clean copy (no stipple shader hook, hero pose on the root) so the file is engine-agnostic.
+function exportModel() {
+  const model = createFilmCanister();
+  model.rotation.copy(HERO_POSE.rotation);
+  return model;
+}
+function save(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+async function buildGLB() {
+  const model = exportModel();
+  return new GLTFExporter().parseAsync(model, { binary: true, animations: createClips(), maxTextureSize: 2048 });
+}
+async function buildUSDZ() {
+  const model = exportModel();
+  const s = new THREE.Scene();
+  s.add(model);
+  return new USDZExporter().parseAsync(s);
+}
+document.getElementById('dl-glb').addEventListener('click', async () => save(new Blob([await buildGLB()]), 'film-canister.glb'));
+document.getElementById('dl-usdz').addEventListener('click', async () => save(new Blob([await buildUSDZ()]), 'film-canister.usdz'));
+document.getElementById('dl-glb-file').addEventListener('click', () => { location.href = './film-canister.glb'; });
+document.getElementById('dl-png').addEventListener('click', () => {
+  // Render the hero pose once at 2x on a transparent background
+  const prevBg = stage.dataset.bg, prevGround = ground.visible, prevPR = renderer.getPixelRatio();
+  ground.visible = false;
+  renderer.setPixelRatio(2);
+  resize();
+  const prev = current; pose();
+  renderer.setClearColor(0x000000, 0);
+  renderer.render(scene, camera);
+  renderer.domElement.toBlob(b => {
+    save(b, 'film-canister.png');
+    ground.visible = prevGround; stage.dataset.bg = prevBg;
+    renderer.setPixelRatio(prevPR); resize(); play(prev);
+  });
+});
+
+// Hooks for the headless build script (build.mjs)
+const toB64 = buf => { let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+window.__canister = {
+  glb: async () => toB64(await buildGLB()),
+  usdz: async () => toB64((await buildUSDZ()).buffer),
+  play, pose, setBg: bg => document.querySelector(`#bgs [data-bg="${bg}"]`).click(),
+  stipple: on => { stippleUniforms.uStipple.value = on ? 1 : 0; },
+  freeze: (name, t) => { play(name); clock = t; speed = 0; },
+  ready: true,
+};
+</script>
+</body>
+</html>
