@@ -511,7 +511,7 @@ button { font: inherit; color: inherit; }
       // Mostly linear with a gentle surge and lull, so it reads as real work rather than a timer
       const p = u < 1 ? u - .05 * Math.sin(2 * Math.PI * u) : 1;
       setProgress(p);
-      if (!manual) setPulled(p * AUTO_FILM);
+      if (!manual) setPulled(Math.max(p * AUTO_FILM, popAt(now - t0) * LEADER_POP_PX / travel()));
       if (u < 1) loadRaf = requestAnimationFrame(tick);
       else goto('done');
     };
@@ -520,6 +520,9 @@ button { font: inherit; color: inherit; }
 
   // Manual winding: the film moves less than the finger (it has weight) and coasts a little after a flick.
   // Pulling down draws it out, pushing up winds it back in. It only moves the film — the import clock above is unaffected.
+  // Leader pop from the model's pullCurve: ~1.35 cartridge widths (×134px) in 0.7s, once the patrone has swung level
+  const LEADER_POP_PX = 1.35 * 134, POP_DELAY = 900;
+  const popAt = ms => { const t = (ms - POP_DELAY) / 700; return t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) ** 3; };
   const DRAG_RATIO = .539; // 1.4 × the previous .385
   let manual = true, pulled = 0, wind = null;
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
@@ -542,8 +545,14 @@ button { font: inherit; color: inherit; }
   const startManual = () => {
     pulled = 0; setStrip(0);
     recap.classList.remove('touched');
-    // Once the patrone has settled, let the film's leading edge peek out so there is something to grab
-    timers.push(setTimeout(() => { if (!recap.classList.contains('touched')) coast(.12); }, reduceMotion.matches ? 200 : 1400));
+    // The leader pops out on its own (the model's pull timing), giving something to grab
+    const t0 = performance.now();
+    const pop = now => {
+      if (recap.classList.contains('touched')) return;
+      setPulled(popAt(now - t0) * LEADER_POP_PX / travel());
+      if (now - t0 < POP_DELAY + 700) filmRaf = requestAnimationFrame(pop);
+    };
+    filmRaf = requestAnimationFrame(pop);
   };
   const scale = () => phone.getBoundingClientRect().width / 402;
   const windEl = $('wind');
@@ -714,23 +723,12 @@ const canvas = document.getElementById('stage3d');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 // Five photos → five frames; the film hangs almost straight down instead of curling at the camera
-// Ten frames = the five photos twice, so the film can loop: once the leader is well out of view,
-// winding back by five frames shows exactly the same strip.
+// Shape and motion are the model's own (canister.js): the strip leaves the slot and curls gently toward the viewer.
+// Ten frames = the five photos twice. Once L_SHOW units are out (the strip's end is then off-screen), the strip stays put
+// and its picture scrolls along it instead, wrapping by five frames, so the film keeps coming out for as long as needed.
 FILM.frames = 10;
 FILM.length = FILM.leader + FILM.frames * FILM.pitch;
-const LOOP = 5 * FILM.pitch, LOOP_FROM = 4;
-const filmOut = units => (units > LOOP_FROM + LOOP ? LOOP_FROM + ((units - LOOP_FROM) % LOOP) : units);
-// How the strip hangs (see FILM.shape in canister.js): it leaves the slot still curled from the spool, so it bulges
-// toward the viewer, then gravity takes over and it hangs, drifting down-left; a slow sway and twist keep it alive.
-const SIDE = 0.35;
-FILM.shape = (d, t) => {
-  const settle = Math.min(1, d / 2);
-  return {
-    phi: 0.1 + 0.62 * (d / 0.8) * Math.exp(1 - d / 0.8) + 0.07 * Math.sin(d * 1.3 - t * 1.1) * settle,
-    psi: SIDE * (1 - Math.exp(-d / 1.5)) + 0.05 * Math.sin(d * 0.8 - t * 0.7) * settle,
-    twist: 0.22 * Math.sin(d * 0.55 + 0.6 - t * 0.8) * Math.min(1, d / 1.2),
-  };
-};
+const L_SHOW = 5.4, LOOP = 5 * FILM.pitch;
 
 const W = 402, H = 874, FOV = 22;
 const PX = 134;                                    // screen px per model unit (1 unit = cartridge diameter) at z = 0
@@ -778,6 +776,7 @@ const spin = canister.getObjectByName('Spin');
   });
   film.castShadow = film.receiveShadow = true;
 }
+const filmTex = canister.getObjectByName('Film').material.map;
 
 // Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
 const HERO_Q = new THREE.Quaternion().setFromEuler(HERO_POSE.rotation);
@@ -807,6 +806,9 @@ const frame = now => {
 
   q.copy(HERO_Q).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (1 - e) * -0.28));
   q.slerp(LEVEL_Q, l);
+  // a small tug on the cartridge when the leader is yanked out (as in the model's Pull animation)
+  const tt = (now - S.levelAt) / 1000 - 1.02;
+  if (S.step !== 'intro' && !rm) q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.exp(-(tt * tt) / 0.01) * 0.04));
   p.copy(HERO_POS).add(new THREE.Vector3(0, -0.35 * (1 - e) + float, 0)).lerp(LEVEL_POS, l);
   canister.quaternion.copy(q);
   canister.position.copy(p).add(new THREE.Vector3(0, roll * 0.06, -roll));
@@ -814,7 +816,9 @@ const frame = now => {
   spin.rotation.y = -roll / 0.5;
   canvas.style.opacity = x ? String(1 - clamp01((x - 0.55) / 0.45)) : '';
   // Film: the same px travel the 2D strip used, so the tuned speeds carry over
-  canister.userData.setFilmOut(filmOut(S.pulled * S.travelPx / PX) * (1 - clamp01(x / 0.3)) ** 3, rm ? 0 : now / 1000);
+  const U = S.pulled * S.travelPx / PX;
+  filmTex.offset.x = (Math.max(0, U - L_SHOW) % LOOP) / FILM.length;
+  canister.userData.setFilmOut(Math.min(U, L_SHOW) * (1 - clamp01(x / 0.3)) ** 3);
   renderer.render(scene, camera);
   if (!recap.classList.contains('three')) recap.classList.add('three');
 };
