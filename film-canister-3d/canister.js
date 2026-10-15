@@ -45,9 +45,9 @@ export const COLORS = {
   metal: '#141418',
   filmBase: '#0e0d0c',      // positive strip
   edgePrint: '#f0a640',
-  negBase: '#b8602a',       // colour-negative orange mask (also what clear film looks like)
-  negShadow: '#3d1d0b',     // densest point on the negative, so blacks stay brown
-  negPrint: '#3a1b0a',
+  negBase: '#94683f',       // colour-negative mask, pulled toward sepia (also what clear film looks like)
+  negShadow: '#2c1c10',     // densest point on the negative, so blacks stay brown
+  negPrint: '#2a1a0d',
 };
 
 const asset = name => new URL(`./assets/${name}`, import.meta.url).href;
@@ -139,9 +139,9 @@ const sizeOf = img => [img.naturalWidth || img.videoWidth || img.width, img.natu
 // ---------- label ----------
 // Canvas U wraps the circumference, V runs along the axis (canvas top = CapTop end).
 // The artwork's width spans the label length, so "Moments" reads from the CapTop end to the spool end.
-// The whole artwork is used once (blue panel and the white copy panel). It is narrower than the wrap,
-// so the blue top edge and the white bottom edge are extended around the back to meet at the seam under the Lip.
-const LABEL_FOCUS = 0.33; // fraction of the artwork's height that faces the camera (between title and copy)
+// The whole artwork is used and repeated around the can until the wrap is filled
+// (its top and bottom edges are both blue, so the repeats meet cleanly). The wrap's own seam sits under the Lip.
+const LABEL_FOCUS = 0.27; // fraction of the artwork's height that faces the camera (between title and copy)
 
 export function drawLabel(canvas, img) {
   const H = canvas.height, W = canvas.width;
@@ -153,26 +153,11 @@ export function drawLabel(canvas, img) {
   ctx.translate(W / 2, 0);
   ctx.rotate(Math.PI / 2);         // art +x → down the axis; art up → canvas +x
   // in this frame: x ∈ [0, H] along the axis, y runs around the can (y = 0 faces the camera)
-  const y0 = -LABEL_FOCUS * th, reach = W / 2 + 2;
-  // white panel continues past the bottom edge
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, y0 + th - 1, H, reach - (y0 + th) + 1);
-  // blue panel continues past the top edge: stretch its first rows so the gradient along the axis carries on
-  ctx.drawImage(img, 0, 2, iw, 6, 0, -reach, H, reach + y0 + 1);
-  ctx.drawImage(img, 0, y0, H, th);
+  const y0 = -LABEL_FOCUS * th;
+  const first = Math.floor((-W / 2 - y0) / th), last = Math.ceil((W / 2 - y0) / th);
+  for (let k = first; k <= last; k++) ctx.drawImage(img, 0, y0 + k * th - (k ? 0.5 : 0), H, th + 1);
+  ctx.drawImage(img, 0, y0, H, th); // keep the facing copy on top of its neighbours' overlap
   ctx.restore();
-  // the stretched strip has no grain; add some so it matches the artwork's print texture
-  const x0 = Math.max(0, Math.floor(W / 2 - y0)), gw = W - x0;
-  if (gw > 0) {
-    const d = ctx.getImageData(x0, 0, gw, H);
-    let seed = 7;
-    for (let i = 0; i < d.data.length; i += 4) {
-      seed = (seed * 1664525 + 1013904223) >>> 0;
-      const n = ((seed / 4294967296) - 0.5) * 46;
-      d.data[i] += n; d.data[i + 1] += n; d.data[i + 2] += n;
-    }
-    ctx.putImageData(d, x0, 0);
-  }
 }
 
 function makeLabelTexture(width = 3072) {

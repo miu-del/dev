@@ -11,7 +11,7 @@
 | ファイル | 用途 |
 | --- | --- |
 | `canister.js` | モデル本体。`createFilmCanister()` で three.js の Group を返す。コマ画像の差し替えAPI付き |
-| `assets/label.jpg` | ラベルのアートワーク（幅＝缶の長さ方向。青と白のパネルをそのまま一周に巻く） |
+| `assets/label.jpg` | ラベルのアートワーク（幅＝缶の長さ方向。一周に足りない分は画像を繰り返して継ぎ足す） |
 | `assets/frame-*.jpg` | コマのサンプル画像 |
 | `film-canister.glb` | Web / Spline / Blender など。Idle・Spin・Open・Pull のクリップ入り。フィルムは缶の中にしまった状態 |
 | `film-canister.usdz` | iOS（RealityKit / Quick Look）。アニメーションなし。リーダーが少し出た状態 |
@@ -40,7 +40,7 @@ import { createFilmCanister, FILM } from './canister.js';
 const canister = createFilmCanister({
   frames: ['/photos/a.jpg', '/photos/b.jpg', '/photos/c.jpg'], // URL / <img> / canvas / ImageBitmap
   fit: 'auto',          // 'auto' = 縦長は横倒し（実物のフィルムと同じ） / 'cover' = 正立で切り抜き
-  negative: true,       // true = カラーネガ（オレンジベースに反転像） / false = 黒いポジのストリップ
+  negative: true,       // true = カラーネガ（セピア寄りのベースに反転像） / false = 黒いポジのストリップ
   // label: '/my-label.jpg',
 });
 await canister.userData.ready;
