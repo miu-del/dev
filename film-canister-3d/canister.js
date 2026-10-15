@@ -1,9 +1,11 @@
-// Procedural "Moments" film canister.
-// Units: 1 = canister diameter. The canister axis is local +Y (plain end up, spool end down).
+// Procedural "Moments" 35mm film cartridge (patrone) with a pull-out film strip.
+// Units: 1 = cartridge diameter (≈ 22 mm). The cartridge axis is local +Y (plain end up, spool end down).
 // Node tree (names are kept in the exported GLB so animation tools can target them):
 //   FilmCanister            ← place / pose / float this
 //     Spin                  ← rotate around Y to roll the label
-//       Label               ← blue printed wrap
+//       Label               ← printed wrap (assets/label.jpg)
+//       Lip                 ← light-trap slot the film comes out of
+//       Film                ← film strip; pulled out by setFilmOut() (runtime) or morph targets (GLB)
 //       CapTop              ← plain end cap (slides off in the "Open" clip)
 //       CapSpool            ← end cap with the spool hub
 import * as THREE from 'three';
@@ -15,13 +17,37 @@ export const DIM = {
   capHeight: 0.2,
 };
 
-export const COLORS = {
-  blue: '#1238e6',
-  blueDeep: '#0a1fb8',
-  blueLight: '#4d7cf0',
-  ink: '#e9ecf8',
-  metal: '#141418',
+// 35mm film, in the same units (35 mm wide strip → 1.6). Frames are 36×24 mm on a 38 mm pitch,
+// with 8 perforations per frame. Everything along the strip is measured from the leader tip.
+export const FILM = {
+  width: 1.6,
+  leader: 1.6,          // tongue + taper + a little blank film before frame 1
+  tongue: 0.95,         // half-width part of the leader
+  taper: 0.45,          // curved cut from half to full width
+  pitch: 1.737,
+  frameW: 1.645,
+  frameH: 1.096,
+  perfPitch: 0.217,
+  perfAlong: 0.09,
+  perfAcross: 0.128,
+  perfEdge: 0.092,      // film edge → perforation
+  frames: 6,
+  curl: 0.12,           // the strip bends gently toward the viewer as it comes out
+  pxPerUnit: 200,
 };
+FILM.length = FILM.leader + FILM.frames * FILM.pitch;
+// How far the "Pull" animation draws the film out: the leader plus two full frames.
+FILM.pullOut = FILM.leader + 2.05 * FILM.pitch;
+
+export const COLORS = {
+  metal: '#141418',
+  filmBase: '#0e0d0c',
+  edgePrint: '#f0a640',
+};
+
+const asset = name => new URL(`./assets/${name}`, import.meta.url).href;
+export const DEFAULT_LABEL = asset('label.jpg');
+export const DEFAULT_FRAMES = [asset('frame-1.jpg'), asset('frame-2.jpg'), asset('frame-3.jpg')];
 
 // ---------- helpers ----------
 
@@ -36,7 +62,6 @@ function fillet(points, r, steps = 4) {
     const p1 = p.clone().add(db.normalize().multiplyScalar(rr));
     for (let s = 0; s <= steps; s++) {
       const t = s / steps;
-      // quadratic bezier p0 → p → p1
       out.push(new THREE.Vector2(
         (1 - t) ** 2 * p0.x + 2 * (1 - t) * t * p.x + t * t * p1.x,
         (1 - t) ** 2 * p0.y + 2 * (1 - t) * t * p.y + t * t * p1.y,
@@ -92,87 +117,55 @@ function makeCanvas(w, h) {
   return c;
 }
 
-// Cheap seeded RNG so the baked grain is identical every build.
-function rng(seed) {
-  let s = seed >>> 0;
-  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+// Accepts a URL or anything drawImage takes (img, canvas, ImageBitmap, video frame…).
+export function loadImage(src) {
+  if (typeof src !== 'string') return Promise.resolve(src);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Could not load image: ${src}`));
+    img.src = src;
+  });
 }
 
-function sprinkle(ctx, w, h, count, color, maxSize, seed, alphaFn) {
-  const rand = rng(seed);
-  for (let i = 0; i < count; i++) {
-    const x = rand() * w, y = rand() * h;
-    const a = alphaFn ? alphaFn(x, y, rand) : rand();
-    if (a <= 0) continue;
-    ctx.globalAlpha = a;
-    ctx.fillStyle = color;
-    const s = 0.6 + rand() * maxSize;
-    ctx.fillRect(x, y, s, s);
+const sizeOf = img => [img.naturalWidth || img.videoWidth || img.width, img.naturalHeight || img.videoHeight || img.height];
+
+// ---------- label ----------
+// Canvas U wraps the circumference, V runs along the axis (canvas top = CapTop end).
+// The artwork's width spans the label length, so "Moments" reads from the CapTop end to the spool end.
+// The art is centred on the side facing the camera and mirrored around the back to fill the wrap;
+// the seam lands under the Lip.
+const LABEL_FOCUS = 0.34; // fraction of the artwork's height that faces the camera (between title and copy)
+
+export function drawLabel(canvas, img) {
+  const H = canvas.height, W = canvas.width;
+  const ctx = canvas.getContext('2d');
+  const [iw, ih] = sizeOf(img);
+  const scale = H / iw;            // artwork width → label length
+  const th = ih * scale;           // artwork height in canvas px (around the circumference)
+  ctx.save();
+  ctx.translate(W / 2, 0);
+  ctx.rotate(Math.PI / 2);         // art +x → down the axis; art up → canvas +x
+  // in this frame: x ∈ [0, H] along the axis, y runs around the can (y = 0 faces the camera)
+  const y0 = -LABEL_FOCUS * th;
+  for (let k = -2; k <= 2; k++) {
+    ctx.save();
+    ctx.translate(0, y0 + k * th);
+    if (k % 2) { ctx.translate(0, th); ctx.scale(1, -1); } // mirror every other tile so edges meet
+    ctx.drawImage(img, 0, 0, H, th);
+    ctx.restore();
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
-// ---------- textures ----------
-
-// Label: U wraps around the circumference, V runs along the axis (canvas top = CapTop end).
-// Text runs along the axis, reading from the CapTop end toward the spool end, like the illustration.
-export function makeLabelTexture({ width = 2048, title = 'Moments' } = {}) {
+function makeLabelTexture(width = 2560) {
   const W = width;
   const H = Math.round(W * DIM.length / (Math.PI * 2 * DIM.radius));
   const c = makeCanvas(W, H);
   const ctx = c.getContext('2d');
-
-  // Base: saturated blue with a soft lighter band, as printed on the wrap
-  const g = ctx.createLinearGradient(0, 0, W, 0);
-  g.addColorStop(0, COLORS.blueDeep);
-  g.addColorStop(0.3, COLORS.blue);
-  g.addColorStop(0.5, '#2a55f0');
-  g.addColorStop(0.7, COLORS.blue);
-  g.addColorStop(1, COLORS.blueDeep);
-  ctx.fillStyle = g;
+  ctx.fillStyle = '#2b4cf0';       // placeholder until the artwork loads
   ctx.fillRect(0, 0, W, H);
-
-  // Printed grain: light speckles concentrated toward the band, dark specks everywhere
-  sprinkle(ctx, W, H, 26000, '#ffffff', 1.6, 7, (x, y, r) => {
-    const band = Math.exp(-(((x / W) - 0.42) ** 2) / 0.02);
-    return r() < 0.25 + 0.75 * band ? 0.18 + 0.35 * band : 0;
-  });
-  sprinkle(ctx, W, H, 14000, '#000a40', 1.8, 11, (x, y, r) => 0.25 + r() * 0.3);
-
-  // Text, rotated so its baseline runs along V
-  const centreU = W * 0.5;   // the side of the label facing the camera at Spin = 0
-  ctx.save();
-  ctx.translate(centreU, 0);
-  ctx.rotate(Math.PI / 2);   // text +x → canvas +y (down the axis); letter-up → canvas +x
-  // now: x ∈ [0, H] along the axis, y < 0 is "above" the title, y > 0 "below"
-
-  const margin = H * 0.035;
-  ctx.fillStyle = COLORS.ink;
-  ctx.textBaseline = 'alphabetic';
-
-  // Title — sized to fill the length
-  let size = 200;
-  ctx.font = `500 ${size}px "Cormorant Garamond", Georgia, serif`;
-  const tw = ctx.measureText(title).width;
-  size = size * (H - margin * 2) / tw;
-  ctx.font = `500 ${size}px "Cormorant Garamond", Georgia, serif`;
-  ctx.globalAlpha = 0.94;
-  const baseline = size * 0.36; // title sits just below the label's centre line
-  ctx.fillText(title, margin, baseline);
-
-  // Small copy
-  ctx.globalAlpha = 0.85;
-  const small = Math.round(size * 0.1);
-  ctx.font = `400 ${small}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-  ctx.fillText('Capture together, laugh together', margin + size * 0.02, baseline + small * 2.4);
-  ctx.textAlign = 'right';
-  ctx.fillText('Shoot the moments from everyone’s', H - margin, baseline + small * 2.4);
-  ctx.fillText('perspective in real time', H - margin, baseline + small * 3.7);
-  ctx.restore();
-
-  // Grain on top of the ink too, so the type looks printed
-  sprinkle(ctx, W, H, 6000, COLORS.blueDeep, 1.4, 23, (x, y, r) => 0.35 * r());
-
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
@@ -180,54 +173,236 @@ export function makeLabelTexture({ width = 2048, title = 'Moments' } = {}) {
   return tex;
 }
 
-// Blotchy roughness for the black metal (darker = glossier)
-function makeMetalRoughness(size = 512) {
-  const c = makeCanvas(size, size);
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#8a8a8a';
-  ctx.fillRect(0, 0, size, size);
-  sprinkle(ctx, size, size, 9000, '#ffffff', 2.2, 3, (x, y, r) => 0.25 * r());
-  sprinkle(ctx, size, size, 9000, '#303030', 2.2, 5, (x, y, r) => 0.3 * r());
+// ---------- film strip texture ----------
+// Canvas x = distance from the leader tip (u = s / FILM.length), canvas top = the CapTop side of the strip.
+// Frame i (0-based) occupies s ∈ [frameStart(i), frameStart(i) + frameW] and the middle frameH of the width.
+export const frameStart = i => FILM.leader + i * FILM.pitch + (FILM.pitch - FILM.frameW) / 2;
+
+export function frameRectUV(i) {
+  return {
+    u0: frameStart(i) / FILM.length,
+    u1: (frameStart(i) + FILM.frameW) / FILM.length,
+    v0: (FILM.width - FILM.frameH) / 2 / FILM.width,
+    v1: (FILM.width + FILM.frameH) / 2 / FILM.width,
+  };
+}
+
+function filmOutline(ctx, P, H) {
+  const tongueEnd = FILM.tongue * P, taper = FILM.taper * P, half = H / 2, r = 0.06 * P;
+  ctx.beginPath();
+  ctx.moveTo(0, half + r);
+  ctx.quadraticCurveTo(0, half, r, half);
+  ctx.lineTo(tongueEnd, half);
+  ctx.bezierCurveTo(tongueEnd + taper * 0.55, half, tongueEnd + taper * 0.45, 0, tongueEnd + taper, 0);
+  ctx.lineTo(FILM.length * P, 0);
+  ctx.lineTo(FILM.length * P, H);
+  ctx.lineTo(r, H);
+  ctx.quadraticCurveTo(0, H, 0, H - r);
+  ctx.closePath();
+}
+
+// images: array of loaded image sources; they repeat if there are fewer than FILM.frames.
+// fit: 'auto' turns portrait shots sideways (as they sit on real film), 'cover' always crops upright.
+export function drawFilmStrip(canvas, images = [], { fit = 'auto', label = 'MOMENTS 400' } = {}) {
+  const P = FILM.pxPerUnit, W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  filmOutline(ctx, P, H);
+  ctx.fillStyle = COLORS.filmBase;
+  ctx.fill();
+  ctx.clip();
+
+  // Frames
+  const fw = FILM.frameW * P, fh = FILM.frameH * P, fy = (H - fh) / 2;
+  for (let i = 0; i < FILM.frames; i++) {
+    const fx = frameStart(i) * P;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(fx, fy, fw, fh, 0.03 * P);
+    ctx.clip();
+    ctx.fillStyle = '#1c1a18';
+    ctx.fillRect(fx, fy, fw, fh);
+    const img = images.length ? images[i % images.length] : null;
+    if (img) {
+      const [iw, ih] = sizeOf(img);
+      const sideways = fit === 'auto' && ih > iw;
+      ctx.translate(fx + fw / 2, fy + fh / 2);
+      if (sideways) ctx.rotate(Math.PI / 2); // photo "up" points toward the cartridge
+      const bw = sideways ? fh : fw, bh = sideways ? fw : fh;
+      const s = Math.max(bw / iw, bh / ih);
+      ctx.drawImage(img, -iw * s / 2, -ih * s / 2, iw * s, ih * s);
+    }
+    ctx.restore();
+  }
+
+  // Edge printing between the perforations and the edge (both sides, like real stock)
+  ctx.fillStyle = COLORS.edgePrint;
+  ctx.font = `500 ${Math.round(0.06 * P)}px "JetBrains Mono", ui-monospace, Menlo, monospace`;
+  ctx.textBaseline = 'middle';
+  const topY = (FILM.perfEdge / 2) * P, botY = H - topY;
+  for (let i = 0; i < FILM.frames; i++) {
+    const fx = frameStart(i) * P;
+    ctx.fillText(`${label}`, fx + 0.1 * P, botY);
+    ctx.fillText(`▸ ${i + 1}`, fx + 0.1 * P, topY);
+    ctx.fillText(`${i + 1}A`, fx + FILM.pitch * 0.55 * P, topY);
+  }
+  ctx.restore();
+
+  // Perforations, punched out of the alpha
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  const pw = FILM.perfAlong * P, ph = FILM.perfAcross * P, pr = 0.018 * P;
+  const rows = [FILM.perfEdge * P, H - FILM.perfEdge * P - ph];
+  for (let s = 0.2; s < FILM.length - 0.1; s += FILM.perfPitch) {
+    for (const [ri, y] of rows.entries()) {
+      if (s < FILM.tongue + FILM.taper && ri === 0) continue; // the cut-away half of the leader has no perfs
+      ctx.beginPath();
+      ctx.roundRect(s * P, y, pw, ph, pr);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function makeFilmTexture() {
+  const c = makeCanvas(Math.round(FILM.length * FILM.pxPerUnit), Math.round(FILM.width * FILM.pxPerUnit));
+  drawFilmStrip(c, []);
   const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(4, 1);
-  tex.userData.mimeType = 'image/jpeg';
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.userData.mimeType = 'image/png'; // needs alpha for the perforations
   return tex;
 }
 
-// ---------- model ----------
+// ---------- film strip geometry ----------
+// The strip leaves the slot at SLIT heading along -X and curls gently toward +Z (the camera side).
+// A point `d` units out from the slot is a circular arc of curvature FILM.curl.
+const SLIT = new THREE.Vector3(-0.2, 0, -DIM.radius - 0.03);
+const SEG_ALONG = 220;
 
-export function createFilmCanister({ title = 'Moments', labelWidth = 2048 } = {}) {
+function filmPoint(d, outPos, outNormal) {
+  const k = FILM.curl, dd = Math.max(d, 0), a = k * dd;
+  outPos.set(SLIT.x - Math.sin(a) / k, 0, SLIT.z + (1 - Math.cos(a)) / k);
+  // tangent T = (-cos a, 0, sin a); normal = Y × T faces the camera
+  outNormal.set(Math.sin(a), 0, Math.cos(a));
+}
+
+// Fills position/normal arrays for the strip pulled `out` units out of the slot.
+function writeFilm(out, pos, nrm) {
+  const p = new THREE.Vector3(), n = new THREE.Vector3();
+  for (let i = 0; i <= SEG_ALONG; i++) {
+    const s = (i / SEG_ALONG) * FILM.length;
+    filmPoint(out - s, p, n);
+    for (let j = 0; j <= 1; j++) {
+      const k = (i * 2 + j) * 3;
+      pos[k] = p.x; pos[k + 1] = (j - 0.5) * FILM.width; pos[k + 2] = p.z;
+      nrm[k] = n.x; nrm[k + 1] = 0; nrm[k + 2] = n.z;
+    }
+  }
+}
+
+function makeFilmGeometry() {
+  const count = (SEG_ALONG + 1) * 2;
+  const g = new THREE.BufferGeometry();
+  const uv = new Float32Array(count * 2), idx = [];
+  for (let i = 0; i <= SEG_ALONG; i++) {
+    for (let j = 0; j <= 1; j++) { uv[(i * 2 + j) * 2] = i / SEG_ALONG; uv[(i * 2 + j) * 2 + 1] = j; }
+    if (i < SEG_ALONG) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  return g;
+}
+
+// Light-trap lip: a short tangential spout on the back of the shell, running the full label length.
+function makeLipGeometry() {
+  const r = DIM.radius;
+  const s = new THREE.Shape();
+  s.moveTo(0.12, -Math.sqrt(r * r - 0.12 * 0.12));
+  s.lineTo(0.0, -r - 0.07);
+  s.lineTo(-0.2, -r - 0.065);
+  s.lineTo(-0.2, -r + 0.005);
+  s.lineTo(-0.16, -Math.sqrt(r * r - 0.16 * 0.16));
+  s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, {
+    depth: DIM.length - 0.02, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.012, bevelSegments: 3, curveSegments: 4,
+  });
+  g.rotateX(Math.PI / 2);                 // shape plane → XZ, extrusion → -Y
+  g.translate(0, DIM.length / 2 - 0.01, 0);
+  return g;
+}
+
+// Pull timing shared by the viewer and the GLB clip: the leader pops out, a beat, then a smooth draw.
+export const PULL_DURATION = 2.2;
+export function pullCurve(t) {
+  const lead = 1.35;
+  if (t <= 0) return 0;
+  if (t < 0.7) return lead * (1 - (1 - t / 0.7) ** 3);
+  if (t < 0.85) return lead;
+  const u = Math.min((t - 0.85) / (PULL_DURATION - 0.85), 1);
+  const e = u < 0.5 ? 4 * u ** 3 : 1 - (-2 * u + 2) ** 3 / 2;
+  return lead + (FILM.pullOut - lead) * e;
+}
+
+// ---------- model ----------
+// options:
+//   label   URL or image for the wrap (defaults to assets/label.jpg)
+//   frames  URLs or images for the film frames (defaults to the sample photos); repeats to fill FILM.frames
+//   fit     'auto' | 'cover'  (see drawFilmStrip)
+//   filmOut initial length of film outside the cartridge
+// Returns the root Group. Its userData holds the runtime API:
+//   ready                 Promise that resolves once label + frames are drawn
+//   setFilmOut(units)     pull the film out (0 … FILM.length); FILM.pullOut is a good "fully out"
+//   setFrames(list, opt)  redraw the frames with new images → Promise
+//   setLabel(src)         swap the wrap artwork → Promise
+export function createFilmCanister({ label = DEFAULT_LABEL, frames = DEFAULT_FRAMES, fit = 'auto', filmOut = 0 } = {}) {
   const root = new THREE.Group();
   root.name = 'FilmCanister';
   const spin = new THREE.Group();
   spin.name = 'Spin';
   root.add(spin);
 
+  const labelTex = makeLabelTexture();
   const labelMat = new THREE.MeshPhysicalMaterial({
-    name: 'LabelPrint',
-    map: makeLabelTexture({ width: labelWidth, title }),
-    roughness: 0.42,
-    metalness: 0,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.35,
+    name: 'LabelPrint', map: labelTex, roughness: 0.42, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.35,
   });
-  const label = new THREE.Mesh(
+  const labelMesh = new THREE.Mesh(
     new THREE.CylinderGeometry(DIM.radius, DIM.radius, DIM.length, 128, 1, true),
     labelMat,
   );
-  label.name = 'Label';
-  // CylinderGeometry puts u = 0.5 at -Z; turn it so the title faces +Z (the default camera side)
-  label.rotation.y = Math.PI;
-  spin.add(label);
+  labelMesh.name = 'Label';
+  // CylinderGeometry puts u = 0.5 at -Z; turn it so the art's centre faces +Z and the seam sits under the Lip
+  labelMesh.rotation.y = Math.PI;
+  spin.add(labelMesh);
 
-  const metal = new THREE.MeshStandardMaterial({
-    name: 'BlackMetal',
-    color: COLORS.metal,
-    metalness: 0.55,
-    roughness: 0.58,
-    roughnessMap: makeMetalRoughness(),
+  const metal = new THREE.MeshStandardMaterial({ name: 'BlackMetal', color: COLORS.metal, metalness: 0.55, roughness: 0.58 });
+
+  const lip = new THREE.Mesh(makeLipGeometry(), metal);
+  lip.name = 'Lip';
+  spin.add(lip);
+  const felt = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.075, DIM.length - 0.04),
+    new THREE.MeshStandardMaterial({ name: 'Felt', color: '#0a0a0c', roughness: 1 }),
+  );
+  felt.name = 'LipFelt';
+  felt.rotation.y = -Math.PI / 2;
+  felt.position.set(-0.213, 0, -DIM.radius - 0.03);
+  spin.add(felt);
+
+  const filmTex = makeFilmTexture();
+  const filmMat = new THREE.MeshStandardMaterial({
+    name: 'FilmStrip', map: filmTex, emissiveMap: filmTex, emissive: '#ffffff', emissiveIntensity: 0.28,
+    roughness: 0.32, metalness: 0, side: THREE.DoubleSide, alphaTest: 0.5,
   });
+  filmMat.userData.noStipple = true; // keep the photos clean
+  const filmGeo = makeFilmGeometry();
+  const film = new THREE.Mesh(filmGeo, filmMat);
+  film.name = 'Film';
+  film.frustumCulled = false; // geometry changes every frame
+  spin.add(film);
 
   const capTop = new THREE.Mesh(new THREE.LatheGeometry(capProfile(false), 128), metal);
   capTop.name = 'CapTop';
@@ -251,15 +426,76 @@ export function createFilmCanister({ title = 'Moments', labelWidth = 2048 } = {}
   spin.add(plug);
 
   root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+
+  // ---- runtime API ----
+  let out = -1;
+  const setFilmOut = units => {
+    units = THREE.MathUtils.clamp(units, 0, FILM.length);
+    if (units === out) return;
+    out = units;
+    writeFilm(units, filmGeo.attributes.position.array, filmGeo.attributes.normal.array);
+    filmGeo.attributes.position.needsUpdate = true;
+    filmGeo.attributes.normal.needsUpdate = true;
+    film.visible = units > 0.001;
+  };
+  const setFrames = async (list, opt) => {
+    const imgs = await Promise.all(list.map(loadImage));
+    drawFilmStrip(filmTex.image, imgs, { fit, ...opt });
+    filmTex.needsUpdate = true;
+  };
+  const setLabel = async src => {
+    drawLabel(labelTex.image, await loadImage(src));
+    labelTex.needsUpdate = true;
+  };
+  setFilmOut(filmOut);
+  root.userData = {
+    setFilmOut, setFrames, setLabel,
+    get filmOut() { return out; },
+    ready: Promise.all([setLabel(label), setFrames(frames)]),
+  };
   return root;
 }
 
+// Bakes the pull into morph targets so the GLB can play it without code:
+// target i = film pulled out to PULL_STATES[i]. Weight two neighbours to land in between.
+export const PULL_STATES = Array.from({ length: 17 }, (_, i) => (i / 16) * FILM.pullOut);
+
+export function bakeFilmMorphs(root) {
+  const film = root.getObjectByName('Film');
+  const g = film.geometry;
+  const n = g.attributes.position.count * 3;
+  writeFilm(0, g.attributes.position.array, g.attributes.normal.array);
+  g.attributes.position.needsUpdate = g.attributes.normal.needsUpdate = true;
+  g.morphAttributes.position = [];
+  g.morphAttributes.normal = [];
+  for (const e of PULL_STATES) {
+    const p = new Float32Array(n), nn = new Float32Array(n);
+    writeFilm(e, p, nn);
+    g.morphAttributes.position.push(new THREE.BufferAttribute(p, 3));
+    g.morphAttributes.normal.push(new THREE.BufferAttribute(nn, 3));
+  }
+  g.morphTargetsRelative = false;
+  film.visible = true;
+  film.updateMorphTargets();
+  return film;
+}
+
+function morphWeightsAt(e) {
+  const w = new Array(PULL_STATES.length).fill(0);
+  const step = PULL_STATES[1];
+  const f = Math.min(e / step, PULL_STATES.length - 1);
+  const i = Math.floor(f), t = f - i;
+  w[i] = 1 - t;
+  if (t > 0) w[i + 1] = t;
+  return w;
+}
+
 // The pose of the illustration: axis tipped down to the lower-right, spool end toward the viewer.
-// Built from directions so it is easy to tweak: where the spool end points, and where the title should face.
+// Built from directions so it is easy to tweak: where the spool end points, and where the label should face.
 function heroRotation() {
   const toSpool = new THREE.Vector3(0.78, -0.42, 0.5).normalize();  // right, down, toward the viewer
   const y = toSpool.clone().negate();                                // local +Y = plain end
-  const view = new THREE.Vector3(-0.1, 0.35, 1);                     // title faces the camera, a touch upward
+  const view = new THREE.Vector3(-0.1, 0.35, 1);                     // label faces the camera, a touch upward
   const z = view.sub(y.clone().multiplyScalar(view.dot(y))).normalize();
   const x = new THREE.Vector3().crossVectors(y, z);
   return new THREE.Euler().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z), 'XYZ');
@@ -267,13 +503,12 @@ function heroRotation() {
 export const HERO_POSE = { rotation: heroRotation() };
 
 // ---------- baked clips (exported into the GLB) ----------
-// Times in seconds. All clips loop cleanly except Open, which is a one-shot.
+// Times in seconds. Idle and Spin loop; Open and Pull are one-shots (play Pull reversed to rewind).
 export function createClips() {
   const clips = [];
   const q = (x, y, z) => new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, 'XYZ'));
   const flat = qs => qs.flatMap(qq => qq.toArray());
 
-  // Idle: gentle bob and sway on the root, slow label drift
   {
     const n = 25, dur = 4, times = [], pos = [], rot = [];
     const base = HERO_POSE.rotation;
@@ -289,7 +524,6 @@ export function createClips() {
     ]));
   }
 
-  // Spin: one full turn of the label around its own axis
   {
     const n = 9, dur = 3, times = [], rot = [];
     for (let i = 0; i < n; i++) {
@@ -301,7 +535,6 @@ export function createClips() {
     ]));
   }
 
-  // Open: the top cap pops up with a slight tilt, holds, then snaps back
   {
     const y0 = DIM.length / 2;
     const times = [0, 0.18, 0.45, 1.2, 1.45, 1.6];
@@ -310,6 +543,18 @@ export function createClips() {
     clips.push(new THREE.AnimationClip('Open', 1.6, [
       new THREE.VectorKeyframeTrack('CapTop.position', times, pos),
       new THREE.QuaternionKeyframeTrack('CapTop.quaternion', times, rot),
+    ]));
+  }
+
+  {
+    const n = 45, times = [], weights = [];
+    for (let i = 0; i < n; i++) {
+      const t = (i / (n - 1)) * PULL_DURATION;
+      times.push(t);
+      weights.push(...morphWeightsAt(pullCurve(t)));
+    }
+    clips.push(new THREE.AnimationClip('Pull', PULL_DURATION, [
+      new THREE.NumberKeyframeTrack('Film.morphTargetInfluences', times, weights),
     ]));
   }
   return clips;
@@ -327,7 +572,7 @@ export function applyStipple(object) {
   object.traverse(o => {
     if (!o.isMesh) return;
     const m = o.material;
-    if (m.userData.stipple) return;
+    if (m.userData.stipple || m.userData.noStipple) return;
     m.userData.stipple = true;
     m.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, stippleUniforms);

@@ -33,4 +33,8 @@ await page.evaluate(() => window.__canister.freeze('still', 0));
 await page.waitForTimeout(400);
 await page.locator('#stage').screenshot({ path: join(here, 'preview.png') });
 console.log('wrote preview.png');
+await page.evaluate(() => window.__canister.freeze('pull', 2.2));
+await page.waitForTimeout(400);
+await page.locator('#stage').screenshot({ path: join(here, 'preview-pull.png') });
+console.log('wrote preview-pull.png');
 await browser.close();

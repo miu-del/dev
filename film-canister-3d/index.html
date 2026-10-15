@@ -6,7 +6,7 @@
 <title>Film Canister 3D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=Fraunces:opsz,wght@9..144,400&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 /* Same dark shell as camera-filter-animation: stage on the left, control rail on the right. */
 :root {
@@ -69,6 +69,15 @@ input[type="range"] { width: 130px; accent-color: var(--accent); }
 input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
 .dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .dl button { text-align: center; }
+.file {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font: 500 13px var(--font-jp); background: #1c1c28; border: 1px solid var(--rail-line); border-radius: 10px;
+  padding: 9px 10px; cursor: pointer;
+}
+.file:hover { border-color: #3a3a55; }
+.file:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.file small { font: 10px var(--font-mono); color: var(--ink-dim); }
+.file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .note { margin: 0; color: var(--ink-dim); font-size: 11px; line-height: 1.6; }
 </style>
 </head>
@@ -81,7 +90,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
   <aside class="rail">
     <div>
       <h1>Film Canister</h1>
-      <p>「Moments」フィルム缶の3Dモデル。UIアニメーション用のプリセットとGLB / USDZ書き出し。</p>
+      <p>「Moments」パトローネ（35mmフィルム）の3Dモデル。フィルムを引き出すアニメーションと、コマに好きな画像を入れる仕組み付き。</p>
     </div>
 
     <div class="group">
@@ -92,8 +101,19 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
         <button data-anim="enter">転がって登場<small>Roll in · 1.4s</small></button>
         <button data-anim="tap">タップ反応<small>Tap · 0.6s</small></button>
         <button data-anim="open">フタが開く<small>Open · 1.6s</small></button>
+        <button data-anim="pull">フィルムを引き出す<small>Pull · 2.2s</small></button>
+        <button data-anim="rewind">巻き戻す<small>Rewind · 1.2s</small></button>
         <button data-anim="still">静止<small>Hero pose</small></button>
       </div>
+    </div>
+
+    <div class="group">
+      <span>Film</span>
+      <label class="file">コマの画像を選ぶ<small id="frames-count">サンプル 3枚</small><input type="file" id="frames-in" accept="image/*" multiple></label>
+      <label class="file">ラベル画像を選ぶ<small id="label-name">label.jpg</small><input type="file" id="label-in" accept="image/*"></label>
+      <label class="row">縦長の写真は横倒しで入れる <input type="checkbox" id="sideways" checked></label>
+      <button id="frames-reset">サンプル画像に戻す</button>
+      <p class="note">コマは6つ。画像が足りない分は繰り返して埋めます。横倒しは実物のフィルムと同じ入り方で、オフにすると正立のまま中央を切り抜きます。</p>
     </div>
 
     <div class="group">
@@ -117,7 +137,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
         <button id="dl-png">PNG<small>透過 · 2x</small></button>
         <button id="dl-glb-file">同梱GLB<small>film-canister.glb</small></button>
       </div>
-      <p class="note">GLBには Idle / Spin / Open のアニメーションクリップが入っています。イラスト風の粒子はビューア側のシェーダーなので書き出しには含まれません（ラベルの印刷粒子はテクスチャに焼き込み済み）。</p>
+      <p class="note">GLBには Idle / Spin / Open / Pull のアニメーションクリップと、いま入れているコマ画像が入ります。Pull はモーフターゲットで再生します。イラスト風の粒子はビューア側のシェーダーなので書き出しには含まれません。</p>
     </div>
   </aside>
 </div>
@@ -134,11 +154,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
-import { createFilmCanister, createClips, HERO_POSE, DIM, applyStipple, stippleUniforms } from './canister.js';
+import {
+  createFilmCanister, createClips, bakeFilmMorphs, pullCurve, HERO_POSE, DIM, FILM, PULL_DURATION,
+  DEFAULT_LABEL, DEFAULT_FRAMES, applyStipple, stippleUniforms,
+} from './canister.js';
 
 // The label is drawn on a canvas, so the title font must be ready first
 await Promise.all([
-  document.fonts.load('500 100px "Cormorant Garamond"'),
+  document.fonts.load('500 12px "JetBrains Mono"'), // film edge printing
 ]).catch(() => {});
 
 const stage = document.getElementById('stage');
@@ -179,7 +202,10 @@ ground.position.y = -1.25;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const canister = createFilmCanister();
+// What goes on the label and in the frames; exports reuse the same sources
+const source = { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES, fit: 'auto' };
+const canister = createFilmCanister(source);
+await canister.userData.ready;
 const spin = canister.getObjectByName('Spin');
 const capTop = canister.getObjectByName('CapTop');
 scene.add(canister);
@@ -214,10 +240,15 @@ const clamp01 = t => Math.min(Math.max(t, 0), 1);
 const H = HERO_POSE.rotation;
 const capY = DIM.length / 2;
 
-function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, capLift = 0, capTilt = 0 } = {}) {
-  canister.position.set(x, y, 0);
+let filmRest = 0; // film left outside after Pull, until Rewind
+
+function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, capLift = 0, capTilt = 0, film = filmRest } = {}) {
+  // As the strip comes out (down-left), slide the cartridge up-right and zoom out so the frames stay in view
+  const f = clamp01(film / FILM.pullOut);
+  canister.position.set(x + 0.6 * f, y + 0.85 * f, 0);
   canister.rotation.set(rx, ry, rz);
-  canister.scale.setScalar(s);
+  canister.scale.setScalar(s * (1 - 0.5 * f));
+  canister.userData.setFilmOut(film);
   spin.rotation.y = spinY;
   capTop.position.y = capY + capLift;
   capTop.position.z = capLift * 0.12;
@@ -267,6 +298,24 @@ const presets = {
       pose({ capLift: lift, capTilt: tilt, y: lift > 0 ? -lift * 0.05 : 0 });
     },
   },
+  pull: {
+    loop: false, dur: PULL_DURATION,
+    at: t => {
+      const film = pullCurve(t);
+      // a small tug on the cartridge each time the film is yanked
+      const tug = Math.exp(-((t - 0.12) ** 2) / 0.01) * 0.04 + Math.exp(-((t - 1.0) ** 2) / 0.02) * 0.025;
+      pose({ film, rz: H.z - tug, spinY: -film * 0.04 });
+    },
+    done: () => { filmRest = FILM.pullOut; },
+  },
+  rewind: {
+    loop: false, dur: 1.2,
+    at: t => {
+      const from = filmRest || FILM.pullOut;
+      pose({ film: from * (1 - ease.inOut(clamp01(t / 1.2))) });
+    },
+    done: () => { filmRest = 0; },
+  },
 };
 
 let current = 'idle', t0 = performance.now(), speed = 1, clock = 0, last = performance.now();
@@ -290,7 +339,7 @@ function frame(now) {
   else {
     p.at(Math.min(clock, p.dur));
     // one-shots fall back to idle so the stage never freezes mid-pose
-    if (current !== 'still' && clock > p.dur + 0.5) play('idle');
+    if (current !== 'still' && clock > p.dur + 0.5) { p.done?.(); play('idle'); }
   }
   controls.update();
   renderer.render(scene, camera);
@@ -310,11 +359,42 @@ document.getElementById('bgs').addEventListener('click', e => {
   document.querySelectorAll('#bgs button').forEach(x => x.setAttribute('aria-pressed', x === b));
 });
 
+// ---------- film / label images ----------
+const framesIn = document.getElementById('frames-in');
+const labelIn = document.getElementById('label-in');
+framesIn.addEventListener('change', async () => {
+  if (!framesIn.files.length) return;
+  source.frames = [...framesIn.files].map(f => URL.createObjectURL(f));
+  document.getElementById('frames-count').textContent = `${framesIn.files.length}枚`;
+  await canister.userData.setFrames(source.frames, { fit: source.fit });
+  if (!filmRest) play('pull'); // show the new frames
+});
+labelIn.addEventListener('change', async () => {
+  const f = labelIn.files[0];
+  if (!f) return;
+  source.label = URL.createObjectURL(f);
+  document.getElementById('label-name').textContent = f.name;
+  await canister.userData.setLabel(source.label);
+});
+document.getElementById('sideways').addEventListener('change', e => {
+  source.fit = e.target.checked ? 'auto' : 'cover';
+  canister.userData.setFrames(source.frames, { fit: source.fit });
+});
+document.getElementById('frames-reset').addEventListener('click', async () => {
+  Object.assign(source, { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES });
+  framesIn.value = labelIn.value = '';
+  document.getElementById('frames-count').textContent = 'サンプル 3枚';
+  document.getElementById('label-name').textContent = 'label.jpg';
+  await Promise.all([canister.userData.setFrames(source.frames, { fit: source.fit }), canister.userData.setLabel(source.label)]);
+});
+
 // ---------- export ----------
 // Export a clean copy (no stipple shader hook, hero pose on the root) so the file is engine-agnostic.
-function exportModel() {
-  const model = createFilmCanister();
+async function exportModel({ filmOut = 0 } = {}) {
+  const model = createFilmCanister({ ...source, filmOut });
+  await model.userData.ready;
   model.rotation.copy(HERO_POSE.rotation);
+  model.userData = {}; // functions and promises don't belong in glTF extras
   return model;
 }
 function save(blob, name) {
@@ -325,11 +405,13 @@ function save(blob, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 async function buildGLB() {
-  const model = exportModel();
-  return new GLTFExporter().parseAsync(model, { binary: true, animations: createClips(), maxTextureSize: 2048 });
+  const model = await exportModel();
+  bakeFilmMorphs(model); // film rests inside; the Pull clip draws it out
+  return new GLTFExporter().parseAsync(model, { binary: true, animations: createClips(), maxTextureSize: 4096 });
 }
 async function buildUSDZ() {
-  const model = exportModel();
+  // USDZ has no morph animation here, so it ships with the leader sticking out like a fresh roll
+  const model = await exportModel({ filmOut: FILM.tongue + 0.3 });
   const s = new THREE.Scene();
   s.add(model);
   return new USDZExporter().parseAsync(s);
@@ -361,6 +443,7 @@ window.__canister = {
   play, pose, setBg: bg => document.querySelector(`#bgs [data-bg="${bg}"]`).click(),
   stipple: on => { stippleUniforms.uStipple.value = on ? 1 : 0; },
   freeze: (name, t) => { play(name); clock = t; speed = 0; },
+  setFilmRest: v => { filmRest = v; },
   ready: true,
 };
 </script>
