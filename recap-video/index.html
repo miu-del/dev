@@ -736,9 +736,9 @@ const spin = canister.getObjectByName('Spin');
 // Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
 const HERO_Q = new THREE.Quaternion().setFromEuler(HERO_POSE.rotation);
 const HERO_POS = toWorld(201, 400);
-// Winding pose: lying on its side, then tipped a little (turned ~18° to show the spool end, rolled ~8° so the left end is higher)
-// so it is not dead level. The film hangs from the cartridge, so it tips with it.
-const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.32, 0.14))
+// Winding pose: lying on its side, then tipped so it is not dead level — left (plain) end higher, the spool end on the right
+// turned toward the viewer (~25°), top tipped slightly toward the camera. The film hangs from the cartridge, so it runs down-left.
+const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.15, -0.44, -0.22))
   .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, Math.PI / 2)));
 const LEVEL_POS = toWorld(201, 250);
 const expo = t => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
