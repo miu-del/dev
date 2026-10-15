@@ -156,6 +156,15 @@ button { font: inherit; color: inherit; }
 .progress { position: absolute; left: 0; right: 0; top: 784px; height: 5px; background: #3a3a40; opacity: 0; transition: opacity .3s ease; }
 .progress i { display: block; height: 100%; width: 100%; background: #fff; transform-origin: 0 50%; transform: scaleX(0); }
 .recap[data-step="loading"] .progress { opacity: 1; }
+/* Manual winding: drag down on the patrone / film (or scroll) to pull the film out */
+.wind { position: absolute; left: 40px; right: 40px; top: 150px; height: 560px; z-index: 5; touch-action: none; cursor: grab; display: none; }
+.wind.grabbing { cursor: grabbing; }
+.recap.manual[data-step="loading"] .wind { display: block; }
+.recap.manual .hub { animation: none !important; }
+.wind-hint { position: absolute; left: 0; right: 0; top: 706px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 8px; font: 500 13px/1 var(--font-jp); letter-spacing: .04em; color: #c8c8d0; opacity: 0; transition: opacity .4s ease; pointer-events: none; }
+.recap.manual[data-step="loading"]:not(.touched) .wind-hint { opacity: 1; transition-delay: 1.2s; }
+.wind-hint svg { animation: nudgeDown 1.4s ease-in-out infinite; }
+@keyframes nudgeDown { 0%, 100% { transform: translateY(-3px); opacity: .5; } 50% { transform: translateY(4px); opacity: 1; } }
 .watch {
   position: absolute; left: 50%; top: 738px; width: 258px; height: 58px; margin-left: -129px; z-index: 4;
   border-radius: 10px; border: 1px solid #5b5bff; background: linear-gradient(180deg, #3434f2, #2121c4); color: #fff;
@@ -209,6 +218,11 @@ button { font: inherit; color: inherit; }
 .steps button[aria-current="step"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, #1a1a25); color: var(--ink); }
 .range { display: flex; align-items: center; gap: 12px; }
 .range input { flex: 1; accent-color: var(--accent); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.seg button { appearance: none; border: 1px solid var(--rail-line); background: #1a1a25; border-radius: 8px; padding: 9px 0; cursor: pointer; font: 500 13px/1 var(--font-jp); color: var(--ink-dim); }
+.seg button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, #1a1a25); color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+fieldset[disabled] .range { opacity: .45; }
 .range output { font: 500 13px/1 var(--font-mono); min-width: 3ch; text-align: right; }
 .steps button:focus-visible, .range input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
@@ -218,7 +232,7 @@ button { font: inherit; color: inherit; }
 .spec dd.mono { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
-  .recap[data-step] .strip-sway, .recap[data-step="loading"] .hub, .pill.recap-btn.sheen::after { animation: none; }
+  .recap[data-step] .strip-sway, .recap[data-step="loading"] .hub, .wind-hint svg, .pill.recap-btn.sheen::after { animation: none; }
 }
 </style>
 </head>
@@ -273,12 +287,17 @@ button { font: inherit; color: inherit; }
       </button>
 
       <!-- 2–4. Import: patrone → film coming out → ready -->
-      <section class="recap" id="recap" data-step="intro" aria-label="振り返り動画を作成中">
+      <section class="recap manual" id="recap" data-step="intro" aria-label="振り返り動画を作成中">
         <button class="icon-btn close" type="button" data-close aria-label="閉じる">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="m2 2 12 12M14 2 2 14"/></svg>
         </button>
         <h2 class="recap-title" id="recapTitle">importing all<br>the pictures</h2>
 
+        <div class="wind" id="wind" aria-hidden="true"></div>
+        <div class="wind-hint" aria-hidden="true">
+          <svg width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 3 7 6 7-6M2 11l7 6 7-6"/></svg>
+          下に引いてフィルムを巻き取る
+        </div>
         <div class="strip-window" aria-hidden="true">
           <div class="strip-sway"><div class="strip" id="strip"></div></div>
         </div>
@@ -394,7 +413,15 @@ button { font: inherit; color: inherit; }
     </fieldset>
 
     <fieldset class="group">
-      <legend>ローディング時間</legend>
+      <legend>フィルムの巻き取り</legend>
+      <div class="seg" id="windMode">
+        <button type="button" data-mode="manual" aria-pressed="true">手動で巻く</button>
+        <button type="button" data-mode="auto" aria-pressed="false">自動</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="group" id="autoOpts" disabled>
+      <legend>ローディング時間（自動のとき）</legend>
       <div class="range">
         <input type="range" id="loadSecs" min="10" max="20" step="1" value="20" aria-label="ローディング時間（秒）">
         <output id="loadSecsOut" for="loadSecs">20s</output>
@@ -496,6 +523,64 @@ button { font: inherit; color: inherit; }
     loadRaf = requestAnimationFrame(tick);
   };
 
+  // Manual winding: the film follows the finger 1:1, keeps coasting after a flick, never goes back in
+  let manual = true, pulled = 0, wind = null;
+  const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
+  const hubs = [...recap.querySelectorAll('.hub')];
+  const setPulled = p => {
+    pulled = Math.min(1, Math.max(pulled, p));
+    setProgress(pulled); setStrip(pulled);
+    const deg = pulled * travel() * 1.3; // spool turns as film comes off it
+    hubs.forEach(h => h.style.transform = `rotate(${deg}deg)`);
+    if (pulled >= 1 && step === 'loading' && !timers.done) timers.done = timers.push(setTimeout(() => goto('done'), 250));
+  };
+  const coast = v => {
+    let last = performance.now();
+    const tick = now => {
+      const dt = now - last; last = now;
+      setPulled(pulled + v * dt / travel());
+      v *= Math.pow(.9, dt / 16);
+      if (Math.abs(v) > .01 && pulled < 1) loadRaf = requestAnimationFrame(tick);
+    };
+    loadRaf = requestAnimationFrame(tick);
+  };
+  const startManual = () => {
+    pulled = 0; setProgress(0); setStrip(0); hubs.forEach(h => h.style.transform = '');
+    recap.classList.remove('touched');
+    // Once the patrone has settled, let the film's leading edge peek out so there is something to grab
+    timers.push(setTimeout(() => { if (!recap.classList.contains('touched')) coast(.12); }, reduceMotion.matches ? 200 : 1400));
+  };
+  const scale = () => phone.getBoundingClientRect().width / 402;
+  const windEl = $('wind');
+  windEl.addEventListener('pointerdown', e => {
+    cancelAnimationFrame(loadRaf);
+    windEl.setPointerCapture(e.pointerId); windEl.classList.add('grabbing');
+    recap.classList.add('touched');
+    wind = { y: e.clientY, t: performance.now(), v: 0 };
+  });
+  windEl.addEventListener('pointermove', e => {
+    if (!wind) return;
+    const now = performance.now(), dy = (e.clientY - wind.y) / scale(), dt = Math.max(1, now - wind.t);
+    wind.y = e.clientY; wind.t = now;
+    if (dy > 0) setPulled(pulled + dy / travel());
+    wind.v = .6 * wind.v + .4 * Math.max(0, dy / dt);
+  });
+  const release = () => {
+    if (!wind) return;
+    windEl.classList.remove('grabbing');
+    // A pause before letting go means no flick
+    if (performance.now() - wind.t < 80) coast(Math.min(wind.v, 1.2));
+    wind = null;
+  };
+  windEl.addEventListener('pointerup', release);
+  windEl.addEventListener('pointercancel', release);
+  windEl.addEventListener('wheel', e => {
+    e.preventDefault();
+    cancelAnimationFrame(loadRaf);
+    recap.classList.add('touched');
+    if (e.deltaY > 0) setPulled(pulled + e.deltaY * (e.deltaMode ? 30 : .7) / travel());
+  }, { passive: false });
+
   const goto = next => {
     clearFlow();
     if (next !== 'viewer') player.stop();
@@ -530,7 +615,7 @@ button { font: inherit; color: inherit; }
       // Hold on the patrone with the album details until the viewer starts the import
       [$('canisterIn'), $('recapTitle'), $('recapInfo'), $('startImport')].forEach(replay);
     } else if (next === 'loading') {
-      startLoading();
+      manual ? startManual() : startLoading();
     } else if (next === 'done') {
       setProgress(1); setStrip(1);
     }
@@ -541,6 +626,14 @@ button { font: inherit; color: inherit; }
   $('watch').addEventListener('click', () => goto('viewer'));
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => goto('album')));
   $('steps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) goto(b.dataset.go); });
+  $('windMode').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    manual = b.dataset.mode === 'manual';
+    [...$('windMode').children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('autoOpts').disabled = manual;
+    recap.classList.toggle('manual', manual);
+    if (step === 'loading') goto('intro');
+  });
   $('loadSecs').addEventListener('input', e => { $('loadSecsOut').textContent = e.target.value + 's'; });
 
   // ---- Player (screen 5): the finished recap video ----
