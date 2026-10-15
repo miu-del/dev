@@ -156,6 +156,11 @@ button { font: inherit; color: inherit; }
 .recap[data-step="loading"] .glow3d, .recap[data-step="done"] .glow3d { top: 115px; }
 .recap.three .stage3d, .recap.three .glow3d { opacity: 1; }
 .recap.three .canister, .recap.three .strip-window { visibility: hidden; }
+/* Exit (after 動画を見る): heading and glow fade while the patrone rolls away */
+.recap[data-step="exit"] .recap-title { top: 94px; color: transparent; transition: color .4s ease; } /* opacity is held by its entrance animation */
+.recap[data-step="exit"] .glow3d { top: 115px; opacity: 0; }
+.recap[data-step="exit"] .canister { top: 190px; transform: none; opacity: 0; transition: opacity .5s ease; }
+.recap[data-step="exit"] .strip-window { opacity: 0; transition: opacity .5s ease; }
 .strip-window {
   position: absolute; left: 50%; top: 296px; width: 230px; height: 392px; margin-left: -115px; z-index: 2; overflow: hidden;
   -webkit-mask-image: linear-gradient(#000 0, #000 62%, transparent 100%); mask-image: linear-gradient(#000 0, #000 62%, transparent 100%);
@@ -180,7 +185,7 @@ button { font: inherit; color: inherit; }
 /* Manual winding: drag down on the patrone / film (or scroll) to pull the film out */
 .wind { position: absolute; left: 40px; right: 40px; top: 150px; height: 560px; z-index: 5; touch-action: none; cursor: grab; display: none; }
 .wind.grabbing { cursor: grabbing; }
-.recap.manual[data-step="loading"] .wind { display: block; }
+.recap.manual[data-step="loading"] .wind, .recap.manual[data-step="done"] .wind { display: block; }
 .wind-hint { position: absolute; left: 0; right: 0; top: 706px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 8px; font: 500 13px/1 var(--font-jp); letter-spacing: .04em; color: #c8c8d0; opacity: 0; transition: opacity .4s ease; pointer-events: none; }
 .recap.manual[data-step="loading"]:not(.touched) .wind-hint { opacity: 1; transition-delay: 1.2s; }
 .wind-hint svg { animation: nudgeDown 1.4s ease-in-out infinite; }
@@ -206,8 +211,8 @@ button { font: inherit; color: inherit; }
 .viewer .close { left: 14px; top: 58px; }
 .viewer .more { right: 14px; top: 58px; }
 .video-card { position: absolute; left: 18px; top: 112px; width: 366px; height: 651px; border-radius: 12px; overflow: hidden; background: #111; cursor: pointer; }
-.viewer.open .video-card { animation: cardIn .7s var(--ease-out-expo) both; }
-@keyframes cardIn { from { opacity: 0; transform: scale(.9) translateY(24px); } to { opacity: 1; transform: none; } }
+.viewer.open .video-card { animation: cardIn 1s .05s var(--ease-out-expo) both; }
+@keyframes cardIn { from { opacity: 0; transform: scale(.6); filter: blur(12px); } 60% { filter: blur(0); } to { opacity: 1; transform: none; filter: blur(0); } }
 .video-card video { width: 100%; height: 100%; display: block; object-fit: cover; }
 .paused-badge { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px; border-radius: 32px; background: rgba(0,0,0,.45); display: grid; place-items: center; opacity: 0; transition: opacity .2s ease; pointer-events: none; }
 .video-card.is-paused .paused-badge { opacity: 1; }
@@ -490,9 +495,9 @@ button { font: inherit; color: inherit; }
     const T = $('loadSecs').value * 1000;
     const t0 = performance.now();
     const tick = now => {
-      const u = Math.min(1, (now - t0) / T);
+      const u = (now - t0) / T;
       // Mostly linear with a gentle surge and lull, so it reads as real work rather than a timer
-      const p = u - .05 * Math.sin(2 * Math.PI * u);
+      const p = u < 1 ? u - .05 * Math.sin(2 * Math.PI * u) : 1;
       setProgress(p);
       if (!manual) setPulled(p * AUTO_FILM);
       if (u < 1) loadRaf = requestAnimationFrame(tick);
@@ -518,16 +523,6 @@ button { font: inherit; color: inherit; }
       setPulled(pulled + v * dt / travel());
       v *= Math.pow(.84, dt / 16);
       if (Math.abs(v) > .01 && pulled > 0 && pulled < 1) filmRaf = requestAnimationFrame(tick);
-    };
-    filmRaf = requestAnimationFrame(tick);
-  };
-  // When the import finishes, whatever film is still inside rolls out on its own
-  const finishFilm = () => {
-    const from = pulled, t0 = performance.now(), D = 900;
-    const tick = now => {
-      const k = Math.min(1, (now - t0) / D);
-      setPulled(from + (1 - from) * (1 - Math.pow(1 - k, 3)));
-      if (k < 1) filmRaf = requestAnimationFrame(tick);
     };
     filmRaf = requestAnimationFrame(tick);
   };
@@ -615,13 +610,24 @@ button { font: inherit; color: inherit; }
       startLoading();
     } else if (next === 'done') {
       setProgress(1);
-      if (wasOpen && pulled < 1) finishFilm(); else setPulled(1);
+      if (!wasOpen) setPulled(1);
+      // Auto film keeps coming out at the same pace after the import is done, until it is all out
+      if (!manual) {
+        const rate = AUTO_FILM / ($('loadSecs').value * 1000);
+        let last = performance.now();
+        const feed = now => { setPulled(pulled + rate * (now - last)); last = now; if (pulled < 1) filmRaf = requestAnimationFrame(feed); };
+        filmRaf = requestAnimationFrame(feed);
+      }
+    } else if (next === 'exit') {
+      // 動画を見る: the patrone reels its film in and rolls away, then the video rises out of the centre
+      R3.exitAt = performance.now();
+      timers.push(setTimeout(() => goto('viewer'), reduceMotion.matches ? 200 : 850));
     }
   };
 
   $('openRecap').addEventListener('click', () => goto('intro'));
   $('startImport').addEventListener('click', () => goto('loading'));
-  $('watch').addEventListener('click', () => goto('viewer'));
+  $('watch').addEventListener('click', () => goto('exit'));
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => goto('album')));
   $('steps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) goto(b.dataset.go); });
   $('windMode').addEventListener('click', e => {
@@ -725,6 +731,7 @@ const canister = createFilmCanister({ frames: photos, fit: 'auto', negative: fal
 await canister.userData.ready;
 applyStipple(canister);
 scene.add(canister);
+const spin = canister.getObjectByName('Spin');
 
 // Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
 const HERO_Q = new THREE.Quaternion().setFromEuler(HERO_POSE.rotation);
@@ -745,15 +752,20 @@ const frame = now => {
   // Leaving the intro: swing level and move up over 1.6s
   const l = S.step === 'intro' ? 0 : rm ? 1 : expo(clamp01((now - S.levelAt) / 1600));
   const float = rm ? 0 : Math.sin(now / 640) * 0.04 * (1 - l);
+  // Exit: reel the film in, then roll away into the distance (rolling = turning about its own axis)
+  const x = S.step === 'exit' || S.step === 'viewer' ? (rm ? 1 : clamp01((now - S.exitAt) / 950)) : 0;
+  const roll = x * x * 10;
 
   q.copy(HERO_Q).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (1 - e) * -0.28));
   q.slerp(LEVEL_Q, l);
   p.copy(HERO_POS).add(new THREE.Vector3(0, -0.35 * (1 - e) + float, 0)).lerp(LEVEL_POS, l);
   canister.quaternion.copy(q);
-  canister.position.copy(p);
+  canister.position.copy(p).add(new THREE.Vector3(0, roll * 0.06, -roll));
   canister.scale.setScalar(0.72 + 0.28 * e);
+  spin.rotation.y = -roll / 0.5;
+  canvas.style.opacity = x ? String(1 - clamp01((x - 0.55) / 0.45)) : '';
   // Film: the same px travel the 2D strip used, so the tuned speeds carry over
-  canister.userData.setFilmOut(S.pulled * S.travelPx / PX);
+  canister.userData.setFilmOut(S.pulled * S.travelPx / PX * (1 - (1 - (1 - clamp01(x / 0.3)) ** 3)));
   renderer.render(scene, camera);
   if (!recap.classList.contains('three')) recap.classList.add('three');
 };
