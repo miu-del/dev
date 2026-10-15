@@ -165,6 +165,11 @@ button { font: inherit; color: inherit; }
 }
 .recap[data-step="done"] .watch { opacity: 1; visibility: visible; transform: none; transition: opacity .45s .15s ease, transform .7s .15s var(--ease-out-expo), visibility 0s; }
 .watch:active { transform: scale(.97); }
+/* Patrone screen waits for the viewer: the film only starts once they press this */
+.cta-start { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s ease, visibility 0s .3s; }
+.recap[data-step="intro"] .cta-start { opacity: 1; visibility: visible; transition: opacity .3s ease, visibility 0s; }
+.cta-start .watch { pointer-events: auto; opacity: 1; visibility: inherit; transform: none; transition: transform .12s ease; }
+.cta-start .watch.enter { animation: fadeUp .8s .9s var(--ease-out-expo) both; }
 
 /* ---------- 5. Viewer ---------- */
 .viewer { position: absolute; inset: 0; z-index: 20; background: #000; opacity: 0; visibility: hidden; transition: opacity .35s ease, visibility 0s .35s; }
@@ -174,7 +179,7 @@ button { font: inherit; color: inherit; }
 .video-card { position: absolute; left: 18px; top: 112px; width: 366px; height: 651px; border-radius: 12px; overflow: hidden; background: #111; cursor: pointer; }
 .viewer.open .video-card { animation: cardIn .7s var(--ease-out-expo) both; }
 @keyframes cardIn { from { opacity: 0; transform: scale(.9) translateY(24px); } to { opacity: 1; transform: none; } }
-.video-card canvas { width: 100%; height: 100%; display: block; }
+.video-card video { width: 100%; height: 100%; display: block; object-fit: cover; }
 .paused-badge { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px; border-radius: 32px; background: rgba(0,0,0,.45); display: grid; place-items: center; opacity: 0; transition: opacity .2s ease; pointer-events: none; }
 .video-card.is-paused .paused-badge { opacity: 1; }
 .scrub { position: absolute; left: 12px; right: 12px; bottom: 10px; height: 2px; border-radius: 1px; background: rgba(255,255,255,.25); overflow: hidden; pointer-events: none; }
@@ -198,14 +203,6 @@ button { font: inherit; color: inherit; }
 .rail .lead { margin: 6px 0 0; color: var(--ink-dim); line-height: 1.6; }
 .group { display: flex; flex-direction: column; gap: 8px; border: 0; margin: 0; padding: 0; min-width: 0; }
 .group legend, .group .label { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ink-dim); }
-.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.btn {
-  appearance: none; border: 1px solid var(--accent); background: transparent; color: var(--ink);
-  border-radius: 9px; padding: 10px 14px; font: 500 14px/1 var(--font-jp); cursor: pointer;
-}
-.btn:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-.btn:focus-visible, .steps button:focus-visible, .range input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn[disabled] { opacity: .6; cursor: progress; }
 .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .steps button { appearance: none; border: 1px solid var(--rail-line); background: #1a1a25; border-radius: 8px; padding: 8px 0 7px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-dim); }
 .steps button b { font: 500 13px/1 var(--font-mono); color: var(--ink); }
@@ -213,12 +210,12 @@ button { font: inherit; color: inherit; }
 .range { display: flex; align-items: center; gap: 12px; }
 .range input { flex: 1; accent-color: var(--accent); }
 .range output { font: 500 13px/1 var(--font-mono); min-width: 3ch; text-align: right; }
+.steps button:focus-visible, .range input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
 .spec dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
 .spec dt { color: var(--ink-dim); }
 .spec dd { margin: 0; color: var(--ink); }
 .spec dd.mono { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
-.note { margin: 0; font-size: 12px; color: var(--ink-dim); line-height: 1.6; }
 
 @media (prefers-reduced-motion: reduce) {
   .recap[data-step] .strip-sway, .recap[data-step="loading"] .hub, .pill.recap-btn.sheen::after { animation: none; }
@@ -341,6 +338,7 @@ button { font: inherit; color: inherit; }
         </div>
 
         <div class="progress" id="progress" role="progressbar" aria-label="写真の取り込み" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progressFill"></i></div>
+        <div class="cta-start"><button class="watch" type="button" id="startImport">インポートを始める</button></div>
         <button class="watch" type="button" id="watch">動画を見る</button>
       </section>
 
@@ -353,7 +351,7 @@ button { font: inherit; color: inherit; }
           <svg width="18" height="4" viewBox="0 0 18 4" fill="#fff"><circle cx="2" cy="2" r="2"/><circle cx="9" cy="2" r="2"/><circle cx="16" cy="2" r="2"/></svg>
         </button>
         <div class="video-card" id="videoCard" role="button" tabindex="0" aria-label="再生 / 一時停止">
-          <canvas id="video" width="720" height="1280"></canvas>
+          <video id="video" src="assets/recap.mp4" muted loop playsinline preload="auto"></video>
           <div class="paused-badge"><svg width="22" height="24" viewBox="0 0 22 24"><path d="M3 2v20l17-10z" fill="#fff"/></svg></div>
           <div class="scrub"><i id="scrub"></i></div>
         </div>
@@ -403,24 +401,13 @@ button { font: inherit; color: inherit; }
       </div>
     </fieldset>
 
-    <fieldset class="group">
-      <legend>書き出し</legend>
-      <div class="row">
-        <button class="btn" type="button" id="export">動画ファイルを書き出す</button>
-      </div>
-      <p class="note">画面5の動画をそのまま実時間で録画します（約 <span id="totalSecs">27</span> 秒）。Chrome / Safari は MP4、それ以外は WebM。</p>
-    </fieldset>
-
     <div class="spec">
       <div class="group"><span class="label">動画の仕様（試作値）</span></div>
       <dl>
         <dt>比率・解像度</dt><dd class="mono">9:16 · 720×1280</dd>
         <dt>並び順</dt><dd>撮影時刻順</dd>
-        <dt>構成</dt><dd>タイトル → 写真 → エンディング</dd>
-        <dt>写真1枚</dt><dd class="mono">1.9s（crossfade 0.5s）</dd>
+        <dt>長さ</dt><dd class="mono">18s · 24fps · H.264 MP4</dd>
         <dt>時刻表示</dt><dd>各写真に HH:mm を大きく重ねる</dd>
-        <dt>写真の動き</dt><dd>ゆっくりズーム（Ken Burns）</dd>
-        <dt>横長の写真</dt><dd>ぼかし背景 + 幅合わせ</dd>
         <dt>ローディング</dt><dd class="mono">10–20s（写真の取り込み）</dd>
       </dl>
     </div>
@@ -434,7 +421,6 @@ button { font: inherit; color: inherit; }
   const recap = $('recap'), viewer = $('viewer');
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
-  const ALBUM = { title: 'Martin & Naady’s Wedding Party', date: '2026.08.15', guests: 35, shots: 400 };
   // Already in shooting-time order — the video and the film strip both follow it
   const PHOTOS = [
     { src: 'assets/photo-right.jpg',  time: '12:48', by: 'しゅん' },
@@ -448,7 +434,6 @@ button { font: inherit; color: inherit; }
     { src: 'assets/party.jpg',        time: '15:47', by: 'しゅん' },
     { src: 'assets/photo-center.jpg', time: '16:20', by: 'Mio' },
   ];
-  PHOTOS.forEach(p => { p.img = new Image(); p.img.src = p.src; });
 
   // Fit the 402×874 phone into the viewport
   const fit = () => {
@@ -542,9 +527,8 @@ button { font: inherit; color: inherit; }
       recap.dataset.step = next;
     }
     if (next === 'intro') {
-      [$('canisterIn'), $('recapTitle'), $('recapInfo')].forEach(replay);
-      // Hold on the patrone with the album details, then start pulling the film out
-      timers.push(setTimeout(() => goto('loading'), reduceMotion.matches ? 900 : 3000));
+      // Hold on the patrone with the album details until the viewer starts the import
+      [$('canisterIn'), $('recapTitle'), $('recapInfo'), $('startImport')].forEach(replay);
     } else if (next === 'loading') {
       startLoading();
     } else if (next === 'done') {
@@ -553,218 +537,53 @@ button { font: inherit; color: inherit; }
   };
 
   $('openRecap').addEventListener('click', () => goto('intro'));
+  $('startImport').addEventListener('click', () => goto('loading'));
   $('watch').addEventListener('click', () => goto('viewer'));
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => goto('album')));
   $('steps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) goto(b.dataset.go); });
   $('loadSecs').addEventListener('input', e => { $('loadSecsOut').textContent = e.target.value + 's'; });
 
-  // ---- Video renderer (canvas, 720×1280) ----
-  // Same function draws the on-screen preview and the exported file, so what you see is what gets saved.
-  const W = 720, H = 1280;
-  const OPEN = 2400, PER = 1900, XF = 500, END = 3000;
-  const scenes = [{ type: 'open', dur: OPEN }, ...PHOTOS.map((p, i) => ({ type: 'photo', p, i, dur: PER })), { type: 'end', dur: END }];
-  let acc = 0; scenes.forEach(s => { s.start = acc; acc += s.dur; });
-  const TOTAL = acc;
-  $('totalSecs').textContent = Math.round(TOTAL / 1000);
-
-  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
-  const easeOut = x => 1 - Math.pow(1 - x, 4);
-  const ready = img => img.complete && img.naturalWidth > 0;
-  const cover = (iw, ih, w, h, s = 1, px = 0, py = 0) => {
-    const k = Math.max(w / iw, h / ih) * s, dw = iw * k, dh = ih * k;
-    return [(w - dw) / 2 + px * (dw - w) / 2, (h - dh) / 2 + py * (dh - h) / 2, dw, dh];
+  // ---- Player (screen 5): the finished recap video ----
+  const VIDEO_SRC = 'assets/recap.mp4';
+  const video = $('video'), card = $('videoCard');
+  const player = {
+    start() { video.currentTime = 0; card.classList.remove('is-paused'); video.play().catch(() => card.classList.add('is-paused')); },
+    stop() { video.pause(); },
+    toggle() { video.paused ? video.play() : video.pause(); }
   };
-  // Cheap blur that works everywhere (incl. Safari, which lacks ctx.filter): shrink, then let smoothing stretch it back
-  const blurCache = new Map();
-  const blurred = img => {
-    if (!blurCache.has(img)) {
-      const c = document.createElement('canvas'), w = 18, h = Math.round(18 * img.naturalHeight / img.naturalWidth);
-      c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h);
-      blurCache.set(img, c);
-    }
-    return blurCache.get(img);
-  };
-  const shade = (ctx, y0, y1, a0, a1) => {
-    const g = ctx.createLinearGradient(0, y0, 0, y1);
-    g.addColorStop(0, `rgba(0,0,0,${a0})`); g.addColorStop(1, `rgba(0,0,0,${a1})`);
-    ctx.fillStyle = g; ctx.fillRect(0, y0, W, y1 - y0);
-  };
-  const text = (ctx, str, x, y, font, alpha = 1, align = 'center') => {
-    ctx.save();
-    ctx.globalAlpha *= alpha; ctx.font = font; ctx.textAlign = align; ctx.fillStyle = '#fff';
-    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 2;
-    ctx.fillText(str, x, y);
-    ctx.restore();
-  };
-  const backdrop = (ctx, img, dim) => {
-    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-    if (!ready(img)) return;
-    const b = blurred(img);
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(b, ...cover(b.width, b.height, W, H, 1.2));
-    ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, W, H);
-  };
-  const SERIF = '"Fraunces", Georgia, serif', SANS = '"Zen Kaku Gothic New", "Hiragino Sans", sans-serif';
-
-  const drawOpen = (ctx, lt) => {
-    backdrop(ctx, PHOTOS[0].img, .55);
-    const e = reduceMotion.matches ? 1 : easeOut(clamp(lt / 1100));
-    const dy = 26 * (1 - e);
-    text(ctx, 'Martin & Naady’s', W / 2, H * .45 + dy, `400 70px ${SERIF}`, e);
-    text(ctx, 'Wedding Party', W / 2, H * .45 + 80 + dy, `400 70px ${SERIF}`, e);
-    const e2 = reduceMotion.matches ? 1 : easeOut(clamp((lt - 350) / 1000));
-    text(ctx, ALBUM.date, W / 2, H * .45 + 160, `500 28px ${SANS}`, e2 * .85);
-    text(ctx, 'a recap by Moments', W / 2, H - 120, `italic 400 30px ${SERIF}`, e2 * .8);
-  };
-
-  const drawPhoto = (ctx, s, lt) => {
-    const { img } = s.p;
-    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-    if (!ready(img)) return;
-    const k = clamp((lt + XF) / (s.dur + XF));
-    const zoom = reduceMotion.matches ? 1.04 : 1.03 + .09 * k;
-    const iw = img.naturalWidth, ih = img.naturalHeight;
-    if (ih / iw >= 1.15) {
-      // Portrait: full bleed, drifting sideways (alternating direction per photo)
-      const dir = s.i % 2 ? 1 : -1;
-      ctx.drawImage(img, ...cover(iw, ih, W, H, zoom, reduceMotion.matches ? 0 : dir * (k - .5) * .7, 0));
-    } else {
-      // Landscape / square: blurred fill behind, the photo itself fit to the width
-      backdrop(ctx, img, .3);
-      const dw = W * (zoom - .02), dh = dw * ih / iw;
-      ctx.drawImage(img, (W - dw) / 2, H * .56 - dh / 2, dw, dh);
-    }
-    shade(ctx, 0, H * .3, .45, 0);
-    shade(ctx, H * .3, H * .62, .12, .12);
-    shade(ctx, H * .7, H, 0, .55);
-
-    // Shooting time, big — slides up as each photo arrives
-    const e = reduceMotion.matches ? 1 : easeOut(clamp(lt / 750));
-    const dy = 34 * (1 - e);
-    text(ctx, `${ALBUM.title}  ${ALBUM.date}`, W / 2, H * .41 + dy, `500 23px ${SANS}`, e * .9);
-    text(ctx, s.p.time, W / 2, H * .41 + 150 + dy, `400 170px ${SERIF}`, e);
-    text(ctx, `by ${s.p.by}`, 44, H - 60, `500 24px ${SANS}`, e * .9, 'left');
-    text(ctx, 'Moments', W - 40, 76, `400 34px ${SERIF}`, .85, 'right');
-  };
-
-  const drawEnd = (ctx, lt) => {
-    backdrop(ctx, PHOTOS[PHOTOS.length - 1].img, .62);
-    const e = reduceMotion.matches ? 1 : easeOut(clamp(lt / 1100));
-    text(ctx, 'thank you for', W / 2, H * .36, `300 62px ${SERIF}`, e);
-    text(ctx, 'the moments', W / 2, H * .36 + 72, `300 62px ${SERIF}`, e);
-    text(ctx, ALBUM.title, W / 2, H * .53, `400 30px ${SERIF}`, e * .9);
-    text(ctx, `guests   ${ALBUM.guests}`, W / 2, H * .53 + 58, `400 30px ${SERIF}`, e * .9);
-    text(ctx, `shots   ${ALBUM.shots}`, W / 2, H * .53 + 100, `400 30px ${SERIF}`, e * .9);
-    text(ctx, 'Moments', W / 2, H - 120, `400 48px ${SERIF}`, e);
-  };
-
-  const drawScene = (ctx, s, lt) => s.type === 'open' ? drawOpen(ctx, lt) : s.type === 'end' ? drawEnd(ctx, lt) : drawPhoto(ctx, s, lt);
-
-  const render = (ctx, t) => {
-    let i = scenes.length - 1;
-    while (i > 0 && scenes[i].start > t) i--;
-    drawScene(ctx, scenes[i], t - scenes[i].start);
-    const n = scenes[i + 1];
-    if (n && t > n.start - XF) {
-      ctx.save();
-      ctx.globalAlpha = (t - (n.start - XF)) / XF;
-      drawScene(ctx, n, t - n.start);
-      ctx.restore();
-    }
-  };
-
-  // ---- Player (screen 5) ----
-  const vctx = $('video').getContext('2d');
-  const card = $('videoCard');
-  const player = (() => {
-    let raf = 0, t0 = 0, at = 0, paused = false, running = false;
-    const frame = now => {
-      if (!paused) at = (now - t0) % TOTAL;
-      render(vctx, at);
-      $('scrub').style.transform = `scaleX(${at / TOTAL})`;
-      raf = requestAnimationFrame(frame);
-    };
-    return {
-      start() { cancelAnimationFrame(raf); paused = false; running = true; card.classList.remove('is-paused'); t0 = performance.now(); at = 0; raf = requestAnimationFrame(frame); },
-      stop() { cancelAnimationFrame(raf); running = false; },
-      toggle() {
-        if (!running) return;
-        paused = !paused; card.classList.toggle('is-paused', paused);
-        if (!paused) t0 = performance.now() - at;
-      }
-    };
-  })();
+  video.addEventListener('play', () => card.classList.remove('is-paused'));
+  video.addEventListener('pause', () => card.classList.add('is-paused'));
+  video.addEventListener('timeupdate', () => { $('scrub').style.transform = `scaleX(${video.currentTime / (video.duration || 1)})`; });
   card.addEventListener('click', player.toggle);
   card.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); player.toggle(); } });
 
-  // ---- Export: record the same renderer in real time ----
-  let exporting = false;
-  const pickType = () => ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
-    .find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
-  const exportVideo = onProgress => new Promise((resolve, reject) => {
-    const type = pickType();
-    const c = document.createElement('canvas'); c.width = W; c.height = H;
-    if (!type || !c.captureStream) return reject(new Error('このブラウザは動画の書き出しに対応していません'));
-    const ctx = c.getContext('2d');
-    render(ctx, 0);
-    let rec;
-    try { rec = new MediaRecorder(c.captureStream(30), { mimeType: type, videoBitsPerSecond: 6e6 }); }
-    catch (e) { return reject(e); }
-    const chunks = [];
-    rec.ondataavailable = e => e.data.size && chunks.push(e.data);
-    rec.onstop = () => resolve({ blob: new Blob(chunks, { type }), ext: type.startsWith('video/mp4') ? 'mp4' : 'webm' });
-    rec.start(250);
-    const t0 = performance.now();
-    const tick = now => {
-      const t = now - t0;
-      render(ctx, Math.min(t, TOTAL - 1));
-      onProgress(Math.min(1, t / TOTAL));
-      if (t < TOTAL) requestAnimationFrame(tick); else rec.stop();
-    };
-    requestAnimationFrame(tick);
-  });
-  const runExport = async label => {
-    if (exporting) return;
-    exporting = true;
-    const btns = [$('export'), $('save')];
-    btns.forEach(b => b.disabled = true);
+  // ---- Save: hand the video file to the viewer ----
+  let saving = false;
+  $('save').addEventListener('click', async () => {
+    if (saving) return;
+    saving = true; $('save').disabled = true;
+    const filename = 'moments-recap.mp4';
     try {
-      const { blob, ext } = await exportVideo(p => {
-        const pct = Math.round(p * 100);
-        $('export').textContent = `書き出し中… ${pct}%`;
-        $('save').querySelector('span').textContent = `${pct}%`;
-        if (label) toast(`動画を保存しています… ${pct}%`, 0);
-      });
-      const filename = `moments-recap.${ext}`;
       // Inside the claude.ai viewer, files go through its downloads capability; opened directly, a plain link works
       const downloads = window.claude?.use ? await window.claude.use('downloads') : null;
       if (downloads) {
+        const blob = await (await fetch(VIDEO_SRC)).blob();
         try { await downloads.save({ filename, data: blob }); }
         catch (e) { toast(e.code === 'declined' ? '保存をキャンセルしました' : '保存できませんでした'); return; }
       } else {
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = filename;
+        a.href = VIDEO_SRC; a.download = filename;
         document.body.append(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       }
       toast('動画を保存しました');
     } catch (e) {
-      toast(e.message || '書き出しに失敗しました', 3200);
+      toast('保存できませんでした', 3200);
     } finally {
-      exporting = false;
-      btns.forEach(b => b.disabled = false);
-      $('export').textContent = '動画ファイルを書き出す';
-      $('save').querySelector('span').textContent = '保存';
+      saving = false; $('save').disabled = false;
     }
-  };
-  $('export').addEventListener('click', () => runExport(false));
-  $('save').addEventListener('click', () => runExport(true));
+  });
   $('share').addEventListener('click', () => toast('共有シートを開きます（試作）'));
   $('story').addEventListener('click', () => toast('Instagram ストーリーズに投稿します（試作）'));
-
-  // Make sure the serif is ready before the canvas uses it
-  if (document.fonts) ['400 170px Fraunces', '300 62px Fraunces', 'italic 400 30px Fraunces', '500 24px "Zen Kaku Gothic New"']
-    .forEach(f => document.fonts.load(f).catch(() => {}));
 
   goto('album');
 })();
