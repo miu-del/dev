@@ -301,16 +301,61 @@ function filmPoint(d, outPos, outNormal) {
   outNormal.set(Math.sin(a), 0, Math.cos(a));
 }
 
+// Optional physical shape: FILM.shape(d, time) → { phi, psi, twist } (radians) for the point d units out of the slot.
+//   phi   tilt of the strip toward the camera (+Z) away from straight out (-X)
+//   psi   sideways lean along the cartridge axis (±Y)
+//   twist roll of the strip about its own length
+// The centreline is integrated from the slot, so bends accumulate like a real strip. Without a shape, the plain arc above is used.
+const shapeTable = { n: 0, pos: null, tan: null, bin: null };
+function buildShape(out, time) {
+  const n = Math.max(2, Math.ceil(out / 0.02) + 1), ds = out / (n - 1);
+  if (shapeTable.pos === null || shapeTable.pos.length < n) {
+    shapeTable.pos = Array.from({ length: n }, () => new THREE.Vector3());
+    shapeTable.tan = Array.from({ length: n }, () => new THREE.Vector3());
+    shapeTable.bin = Array.from({ length: n }, () => new THREE.Vector3());
+  }
+  shapeTable.n = n; shapeTable.ds = ds;
+  const p = new THREE.Vector3().copy(SLIT), t = new THREE.Vector3(), b = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    const d = i * ds, { phi = 0, psi = 0, twist = 0 } = FILM.shape(d, time);
+    const cp = Math.cos(phi);
+    t.set(-cp * Math.cos(psi), cp * Math.sin(psi), Math.sin(phi)).normalize();
+    // across-strip direction: the axis (+Y) made perpendicular to the tangent, then rolled by the twist
+    b.set(0, 1, 0).addScaledVector(t, -t.y).normalize().applyAxisAngle(t, twist);
+    if (i) p.addScaledVector(t, ds);
+    shapeTable.pos[i].copy(p); shapeTable.tan[i].copy(t); shapeTable.bin[i].copy(b);
+  }
+}
+function shapeAt(d, outPos, outTan, outBin) {
+  const { n, ds, pos, tan, bin } = shapeTable;
+  if (d <= 0) { // still inside: tuck behind the slot along the first direction
+    outTan.copy(tan[0]); outBin.copy(bin[0]);
+    outPos.copy(pos[0]).addScaledVector(tan[0], Math.max(d, -0.05));
+    return;
+  }
+  const f = Math.min(d / ds, n - 1.0001), i = Math.floor(f), k = f - i;
+  outPos.lerpVectors(pos[i], pos[i + 1], k);
+  outTan.lerpVectors(tan[i], tan[i + 1], k).normalize();
+  outBin.lerpVectors(bin[i], bin[i + 1], k).normalize();
+}
+
 // Fills position/normal arrays for the strip pulled `out` units out of the slot.
-function writeFilm(out, pos, nrm) {
-  const p = new THREE.Vector3(), n = new THREE.Vector3();
+function writeFilm(out, pos, nrm, time = 0) {
+  const p = new THREE.Vector3(), n = new THREE.Vector3(), t = new THREE.Vector3(), b = new THREE.Vector3();
+  if (FILM.shape) buildShape(Math.max(out, 0.05), time);
   for (let i = 0; i <= SEG_ALONG; i++) {
     const s = (i / SEG_ALONG) * FILM.length;
-    filmPoint(out - s, p, n);
+    if (FILM.shape) {
+      shapeAt(out - s, p, t, b);
+      n.crossVectors(b, t).normalize(); // faces the camera side, like the plain arc
+    } else {
+      filmPoint(out - s, p, n);
+      b.set(0, 1, 0);
+    }
     for (let j = 0; j <= 1; j++) {
-      const k = (i * 2 + j) * 3;
-      pos[k] = p.x; pos[k + 1] = (j - 0.5) * FILM.width; pos[k + 2] = p.z;
-      nrm[k] = n.x; nrm[k + 1] = 0; nrm[k + 2] = n.z;
+      const k = (i * 2 + j) * 3, w = (j - 0.5) * FILM.width;
+      pos[k] = p.x + b.x * w; pos[k + 1] = p.y + b.y * w; pos[k + 2] = p.z + b.z * w;
+      nrm[k] = n.x; nrm[k + 1] = n.y; nrm[k + 2] = n.z;
     }
   }
 }
@@ -443,11 +488,13 @@ export function createFilmCanister({ label = DEFAULT_LABEL, frames = DEFAULT_FRA
 
   // ---- runtime API ----
   let out = -1;
-  const setFilmOut = units => {
+  // time (seconds) only matters with FILM.shape, which may move the strip on its own (sway); pass it to animate
+  const setFilmOut = (units, time) => {
     units = THREE.MathUtils.clamp(units, 0, FILM.length);
-    if (units === out) return;
+    if (units === out && time === undefined) return;
     out = units;
-    writeFilm(units, filmGeo.attributes.position.array, filmGeo.attributes.normal.array);
+    writeFilm(units, filmGeo.attributes.position.array, filmGeo.attributes.normal.array, time);
+    filmGeo.computeBoundingSphere();
     filmGeo.attributes.position.needsUpdate = true;
     filmGeo.attributes.normal.needsUpdate = true;
     film.visible = units > 0.001;

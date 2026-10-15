@@ -720,7 +720,17 @@ FILM.frames = 10;
 FILM.length = FILM.leader + FILM.frames * FILM.pitch;
 const LOOP = 5 * FILM.pitch, LOOP_FROM = 4;
 const filmOut = units => (units > LOOP_FROM + LOOP ? LOOP_FROM + ((units - LOOP_FROM) % LOOP) : units);
-FILM.curl = 0.03;
+// How the strip hangs (see FILM.shape in canister.js): it leaves the slot still curled from the spool, so it bulges
+// toward the viewer, then gravity takes over and it hangs, drifting down-left; a slow sway and twist keep it alive.
+const SIDE = 0.35;
+FILM.shape = (d, t) => {
+  const settle = Math.min(1, d / 2);
+  return {
+    phi: 0.1 + 0.62 * (d / 0.8) * Math.exp(1 - d / 0.8) + 0.07 * Math.sin(d * 1.3 - t * 1.1) * settle,
+    psi: SIDE * (1 - Math.exp(-d / 1.5)) + 0.05 * Math.sin(d * 0.8 - t * 0.7) * settle,
+    twist: 0.22 * Math.sin(d * 0.55 + 0.6 - t * 0.8) * Math.min(1, d / 1.2),
+  };
+};
 
 const W = 402, H = 874, FOV = 22;
 const PX = 134;                                    // screen px per model unit (1 unit = cartridge diameter) at z = 0
@@ -732,13 +742,23 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(W, H, false);
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.55;
+scene.environmentIntensity = 0.8;
 const camera = new THREE.PerspectiveCamera(FOV, W / H, 0.1, 100);
 camera.position.set(0, 0, DIST);
-const key = new THREE.DirectionalLight('#fff6ea', 2.6); key.position.set(-3, 4, 4); scene.add(key);
+const key = new THREE.DirectionalLight('#fff6ea', 2.6); key.position.set(-3, 4, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5, near: 0.5, far: 20 });
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 5;
+scene.add(key);
+// Invisible backdrop that only shows shadows: the canister and the hanging film cast onto the screen behind them
+const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.35 }));
+backdrop.position.z = -1.6; backdrop.receiveShadow = true; scene.add(backdrop);
 const rim = new THREE.DirectionalLight('#bcd0ff', 1.4); rim.position.set(3, 1, -3); scene.add(rim);
 scene.add(new THREE.HemisphereLight('#ffffff', '#30304a', 0.35));
 
@@ -749,12 +769,14 @@ await canister.userData.ready;
 applyStipple(canister);
 scene.add(canister);
 const spin = canister.getObjectByName('Spin');
-// Lean the film a little down-left as it leaves the slot (turned about the slot, in the film's own plane)
-const FILM_SKEW = -0.3;
+// Film material: glossy base that picks up the environment, little self-light so it shades with the scene
 {
-  const film = canister.getObjectByName('Film'), slot = new THREE.Vector3(-0.2, 0, -0.53), axis = new THREE.Vector3(0, 0, 1);
-  film.rotation.z = FILM_SKEW;
-  film.position.copy(slot).sub(slot.clone().applyAxisAngle(axis, FILM_SKEW));
+  const film = canister.getObjectByName('Film'), old = film.material;
+  film.material = new THREE.MeshPhysicalMaterial({
+    name: 'FilmStrip', map: old.map, emissiveMap: old.map, emissive: '#ffffff', emissiveIntensity: 0.16,
+    roughness: 0.5, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.2, envMapIntensity: 0.45, specularIntensity: 0.5, side: THREE.DoubleSide, alphaTest: 0.5,
+  });
+  film.castShadow = film.receiveShadow = true;
 }
 
 // Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
@@ -792,7 +814,7 @@ const frame = now => {
   spin.rotation.y = -roll / 0.5;
   canvas.style.opacity = x ? String(1 - clamp01((x - 0.55) / 0.45)) : '';
   // Film: the same px travel the 2D strip used, so the tuned speeds carry over
-  canister.userData.setFilmOut(filmOut(S.pulled * S.travelPx / PX) * (1 - clamp01(x / 0.3)) ** 3);
+  canister.userData.setFilmOut(filmOut(S.pulled * S.travelPx / PX) * (1 - clamp01(x / 0.3)) ** 3, rm ? 0 : now / 1000);
   renderer.render(scene, camera);
   if (!recap.classList.contains('three')) recap.classList.add('three');
 };
