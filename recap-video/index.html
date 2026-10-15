@@ -120,6 +120,9 @@ button { font: inherit; color: inherit; }
   transition: top 1.6s var(--ease-out-expo);
 }
 .recap[data-step="loading"] .recap-title, .recap[data-step="done"] .recap-title { top: 110px; }
+/* The patrone screen shows the album instead; the heading arrives with the import */
+.recap[data-step="intro"] .recap-title { top: 110px; opacity: 0; transition: none; }
+.recap[data-step="loading"] .recap-title { transition: opacity .6s .5s ease; }
 .canister {
   position: absolute; left: 50%; top: 332px; width: 252px; height: 121px; margin-left: -126px; z-index: 3;
   transform: rotate(32deg);
@@ -134,10 +137,13 @@ button { font: inherit; color: inherit; }
   55% { opacity: 1; filter: blur(0); }
   to { opacity: 1; transform: none; filter: blur(0); }
 }
-.recap-info { position: absolute; left: 0; right: 0; top: 560px; margin: 0; text-align: center; font: 400 15px/1.5 var(--font-display); color: #e6e6ea; font-variation-settings: "opsz" 14; transition: opacity .4s ease; }
-.recap-info dl { margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
-.recap-info dt { text-align: right; }
-.recap-info dd { margin: 0; text-align: left; font-variant-numeric: tabular-nums; }
+.recap-info { position: absolute; left: 51px; right: 51px; top: 466px; margin: 0; z-index: 4; transition: opacity .4s ease; }
+.recap-info h3 { margin: 0 0 36px; text-align: center; font: 300 26px/1.2 var(--font-display); letter-spacing: -.005em; font-variation-settings: "opsz" 40; color: #ece8df; }
+/* Album facts as a ruled list: label left, value right */
+.recap-info dl { margin: 0; display: grid; grid-template-columns: 1fr auto; font: 400 13.5px/1 var(--font-ui); }
+.recap-info dt, .recap-info dd { margin: 0; padding: 9px 0 8px; border-bottom: 1px solid #3a3a3f; }
+.recap-info dt { color: #a2a2aa; }
+.recap-info dd { color: #ececf0; text-align: right; font-variant-numeric: tabular-nums; }
 .recap:not([data-step="intro"]) .recap-info { opacity: 0; }
 .recap-info-in.enter { animation: fadeUp .8s .35s var(--ease-out-expo) both; }
 .recap-title.enter { animation: fadeUp .8s .1s var(--ease-out-expo) both; }
@@ -154,7 +160,7 @@ button { font: inherit; color: inherit; }
 }
 /* Black glow behind the 3D canister: its own layer, so it does not darken what shows through the perforations */
 .glow3d {
-  position: absolute; left: 50%; top: 270px; width: 380px; height: 270px; margin-left: -190px; z-index: 2; pointer-events: none; opacity: 0;
+  position: absolute; left: 50%; top: 92px; width: 400px; height: 400px; margin-left: -200px; z-index: 2; pointer-events: none; opacity: 0;
   background: radial-gradient(closest-side, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, transparent);
   transition: top 1.6s var(--ease-out-expo), width 1.6s var(--ease-out-expo), height 1.6s var(--ease-out-expo), margin-left 1.6s var(--ease-out-expo), opacity .4s ease;
 }
@@ -293,7 +299,7 @@ button { font: inherit; color: inherit; }
             <svg width="18" height="4" viewBox="0 0 18 4" fill="#fff"><circle cx="2" cy="2" r="2"/><circle cx="9" cy="2" r="2"/><circle cx="16" cy="2" r="2"/></svg>
           </button>
           <div class="hero-meta">
-            <span><svg width="15" height="10" viewBox="0 0 15 10" fill="#d6d6dc" style="vertical-align:-1px;margin-right:4px"><circle cx="5" cy="2.6" r="2.4"/><path d="M0 9.6c0-2.6 2.2-4 5-4s5 1.4 5 4z"/><circle cx="10.6" cy="3" r="2"/><path d="M11 5.8c2.3.1 4 1.3 4 3.8h-3.8c0-1.6-.4-2.8-1.4-3.6z"/></svg>25</span>
+            <span><svg width="15" height="10" viewBox="0 0 15 10" fill="#d6d6dc" style="vertical-align:-1px;margin-right:4px"><circle cx="5" cy="2.6" r="2.4"/><path d="M0 9.6c0-2.6 2.2-4 5-4s5 1.4 5 4z"/><circle cx="10.6" cy="3" r="2"/><path d="M11 5.8c2.3.1 4 1.3 4 3.8h-3.8c0-1.6-.4-2.8-1.4-3.6z"/></svg>28</span>
             <span class="live">アクティブ - 8/15 20:00まで</span>
           </div>
           <h2 class="hero-title">Martin &amp; Naady’s Wedding Party</h2>
@@ -348,13 +354,17 @@ button { font: inherit; color: inherit; }
 
         <div class="recap-info">
           <div class="recap-info-in" id="recapInfo">
-            Martin &amp; Naady’s Wedding Party
-            <dl><dt>guests</dt><dd>35</dd><dt>shots</dt><dd>400</dd></dl>
+            <h3>Martin &amp; Naady’s<br>Wedding Party</h3>
+            <dl>
+              <dt>Date</dt><dd>2026-2-14</dd>
+              <dt>Item count</dt><dd>402</dd>
+              <dt>Guests</dt><dd>28</dd>
+            </dl>
           </div>
         </div>
 
         <div class="progress" id="progress" role="progressbar" aria-label="写真の取り込み" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progressFill"></i></div>
-        <div class="cta-start"><button class="watch" type="button" id="startImport">インポートを始める</button></div>
+        <div class="cta-start"><button class="watch" type="button" id="startImport">Load pictures</button></div>
         <button class="watch" type="button" id="watch">動画を見る</button>
       </section>
 
@@ -626,7 +636,8 @@ button { font: inherit; color: inherit; }
     }
     if (next === 'intro') {
       // Hold on the patrone with the album details until the viewer starts the import
-      [$('canisterIn'), $('recapTitle'), $('recapInfo'), $('startImport')].forEach(replay);
+      [$('canisterIn'), $('recapInfo'), $('startImport')].forEach(replay);
+      $('recapTitle').classList.remove('enter');
     } else if (next === 'loading') {
       if (manual) startManual();
       startLoading();
@@ -716,19 +727,17 @@ button { font: inherit; color: inherit; }
 // The flow script above owns the state (window.recapState); this only draws it.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createFilmCanister, FILM, HERO_POSE, applyStipple } from './canister/canister.js';
+import { createFilmCanister, FILM, FEED_REACH, HERO_POSE } from './canister/canister.js';
 
 const recap = document.getElementById('recap');
 const canvas = document.getElementById('stage3d');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
-// Five photos → five frames; the film hangs almost straight down instead of curling at the camera
-// Shape and motion are the model's own (canister.js): the strip leaves the slot and curls gently toward the viewer.
-// Ten frames = the five photos twice. Once L_SHOW units are out (the strip's end is then off-screen), the strip stays put
-// and its picture scrolls along it instead, wrapping by five frames, so the film keeps coming out for as long as needed.
-FILM.frames = 10;
-FILM.length = FILM.leader + FILM.frames * FILM.pitch;
-const L_SHOW = 5.4, LOOP = 5 * FILM.pitch;
+// Film shape and motion are the model's own (canister.js): Pull draws the leader out of the slot, then — once the
+// leader is off-screen — the model's endless Feed strip takes over. Feed is placed so its frames sit exactly where the
+// Pull strip's frames are (same photo, same spot), so the hand-over is invisible and the film can run for as long as needed.
+const L_SWITCH = 5.4;
+const feedAt = U => U - FILM.leader - FEED_REACH; // Feed amount that lines its frames up with Pull at U units out
 
 const W = 402, H = 874, FOV = 22;
 const PX = 134;                                    // screen px per model unit (1 unit = cartridge diameter) at z = 0
@@ -762,25 +771,24 @@ scene.add(new THREE.HemisphereLight('#ffffff', '#30304a', 0.35));
 
 await document.fonts.load('500 12px "JetBrains Mono"').catch(() => {}); // film edge print
 const photos = [...document.querySelectorAll('#strip .frame img')].map(i => i.getAttribute('src')).reverse();
-const canister = createFilmCanister({ frames: photos, fit: 'auto', negative: false });
+const canister = createFilmCanister({ frames: photos, fit: 'auto' });
 await canister.userData.ready;
-applyStipple(canister);
 scene.add(canister);
 const spin = canister.getObjectByName('Spin');
-// Film material: glossy base that picks up the environment, little self-light so it shades with the scene
-{
-  const film = canister.getObjectByName('Film'), old = film.material;
+// Film material (Pull and Feed strips): glossy base that picks up the environment, little self-light so it shades with the scene
+for (const name of ['Film', 'FilmFeed']) {
+  const film = canister.getObjectByName(name), old = film.material;
   film.material = new THREE.MeshPhysicalMaterial({
-    name: 'FilmStrip', map: old.map, emissiveMap: old.map, emissive: '#ffffff', emissiveIntensity: 0.16,
+    name: old.name, map: old.map, emissiveMap: old.map, emissive: '#ffffff', emissiveIntensity: 0.16,
     roughness: 0.5, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.2, envMapIntensity: 0.45, specularIntensity: 0.5, side: THREE.DoubleSide, alphaTest: 0.5,
   });
   film.castShadow = film.receiveShadow = true;
 }
-const filmTex = canister.getObjectByName('Film').material.map;
+const cycle = canister.userData.feedCycle;
 
 // Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
 const HERO_Q = new THREE.Quaternion().setFromEuler(HERO_POSE.rotation);
-const HERO_POS = toWorld(201, 400);
+const HERO_POS = toWorld(204, 292);
 // Winding pose: lying on its side, then tipped so it is not dead level — left (plain) end higher, the spool end on the right
 // turned toward the viewer (~25°), top tipped slightly toward the camera. The film hangs from the cartridge, so it runs down-left.
 const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, -0.28, -0.03))
@@ -806,6 +814,14 @@ const frame = now => {
 
   q.copy(HERO_Q).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (1 - e) * -0.28));
   q.slerp(LEVEL_Q, l);
+  // Film: the same px travel the 2D strip used, so the tuned speeds carry over
+  const U = S.pulled * S.travelPx / PX, feeding = U >= L_SWITCH;
+  // while Feed runs, the cartridge gives a small tug with every frame that passes (the model's Feed animation)
+  if (feeding && !x && !rm) {
+    const u = (((feedAt(U) % FILM.pitch) + FILM.pitch) % FILM.pitch) / FILM.pitch;
+    const ramp = clamp01((U - L_SWITCH) / FILM.pitch); // eases in over the first frame, so the hand-over doesn't jolt
+    q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.012 * ramp * (0.5 - 0.5 * Math.cos(u * Math.PI * 2))));
+  }
   // a small tug on the cartridge when the leader is yanked out (as in the model's Pull animation)
   const tt = (now - S.levelAt) / 1000 - 1.02;
   if (S.step !== 'intro' && !rm) q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.exp(-(tt * tt) / 0.01) * 0.04));
@@ -815,10 +831,16 @@ const frame = now => {
   canister.scale.setScalar(0.72 + 0.28 * e);
   spin.rotation.y = -roll / 0.5;
   canvas.style.opacity = x ? String(1 - clamp01((x - 0.55) / 0.45)) : '';
-  // Film: the same px travel the 2D strip used, so the tuned speeds carry over
-  const U = S.pulled * S.travelPx / PX;
-  filmTex.offset.x = (Math.max(0, U - L_SHOW) % LOOP) / FILM.length;
-  canister.userData.setFilmOut(Math.min(U, L_SHOW) * (1 - clamp01(x / 0.3)) ** 3);
+  const reel = (1 - clamp01(x / 0.3)) ** 3;
+  if (feeding && !x) {
+    canister.userData.setFilmOut(0);
+    canister.userData.setFilmFeed(feedAt(U));
+  } else {
+    // Pull strip; when reeling in from Feed, start from the Pull length that shows the same frames in the same place
+    const out = feeding ? 3 + ((((U - 3) % cycle) + cycle) % cycle) : U;
+    canister.userData.setFilmFeed(null);
+    canister.userData.setFilmOut(Math.min(out, FILM.length) * reel);
+  }
   renderer.render(scene, camera);
   if (!recap.classList.contains('three')) recap.classList.add('three');
 };
