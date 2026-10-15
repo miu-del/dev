@@ -168,6 +168,12 @@ button { font: inherit; color: inherit; }
 .recap[data-step="done"] .stage3d, .recap[data-step="exit"] .stage3d { --fade: 715px; }
 @property --fade { syntax: '<length>'; inherits: false; initial-value: 860px; }
 .recap.three .stage3d, .recap.three .glow3d { opacity: 1; }
+/* Tap target over the patrone on its own screen */
+.tap3d { position: absolute; left: 60px; top: 165px; width: 285px; height: 255px; z-index: 5; border: 0; padding: 0; background: none; cursor: pointer; display: none; -webkit-tap-highlight-color: transparent; }
+.recap[data-step="intro"] .tap3d { display: block; }
+.tap3d:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 24px; }
+.canister-in.tap img { animation: tapPop .6s both; }
+@keyframes tapPop { 0% { transform: none; } 15% { transform: scale(.92); } 55% { transform: scale(1.03) rotate(2deg); } 100% { transform: none; } }
 .recap.three .canister, .recap.three .strip-window { visibility: hidden; }
 /* Exit (after 動画を見る): heading and glow fade while the patrone rolls away */
 .recap[data-step="exit"] .recap-title { top: 110px; color: transparent; transition: color .4s ease; } /* opacity is held by its entrance animation */
@@ -351,6 +357,7 @@ button { font: inherit; color: inherit; }
 
         <div class="glow3d" aria-hidden="true"></div>
         <canvas class="stage3d" id="stage3d" aria-hidden="true"></canvas>
+        <button class="tap3d" type="button" id="tapCanister" aria-label="パトローネをタップ"></button>
 
         <div class="recap-info">
           <div class="recap-info-in" id="recapInfo">
@@ -504,6 +511,7 @@ button { font: inherit; color: inherit; }
   // loadRaf drives the import clock; filmRaf moves the film on its own (coasting, peeking, finishing)
   let timers = [], loadRaf = 0, filmRaf = 0;
   const clearFlow = () => { timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(loadRaf); cancelAnimationFrame(filmRaf); };
+  const replayClass = (el, c) => { el.classList.remove(c); void el.offsetWidth; el.classList.add(c); };
   const replay = el => { el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter'); };
   const setProgress = p => {
     $('progressFill').style.transform = `scaleX(${p})`;
@@ -596,7 +604,7 @@ button { font: inherit; color: inherit; }
   }, { passive: false });
 
   // Shared with the 3D patrone (module script below), which reads it every frame
-  const R3 = window.recapState = { step: 'album', pulled: 0, travelPx: 0, introAt: 0, levelAt: -1e9 };
+  const R3 = window.recapState = { step: 'album', pulled: 0, travelPx: 0, introAt: 0, levelAt: -1e9, tapAt: -1e9, taps: 0 };
 
   const goto = next => {
     clearFlow();
@@ -618,7 +626,7 @@ button { font: inherit; color: inherit; }
     viewer.classList.remove('open');
     const wasOpen = recap.classList.contains('open');
     const snap = next === 'intro' || !wasOpen;
-    if (next === 'intro') { pulled = 0; R3.pulled = 0; R3.introAt = performance.now(); }
+    if (next === 'intro') { pulled = 0; R3.pulled = 0; R3.introAt = performance.now(); R3.taps = 0; R3.tapAt = -1e9; }
     // The patrone levels out when leaving the intro; any other way in, it is already level
     R3.levelAt = snap ? -1e9 : R3.step === 'intro' ? performance.now() : R3.levelAt;
     R3.step = next;
@@ -660,6 +668,11 @@ button { font: inherit; color: inherit; }
 
   $('openRecap').addEventListener('click', () => goto('intro'));
   $('startImport').addEventListener('click', () => goto('loading'));
+  // Tap the patrone: the model's Tap reaction (3D), or a small pop on the 2D fallback
+  $('tapCanister').addEventListener('click', () => {
+    R3.tapAt = performance.now(); R3.taps++;
+    replayClass($('canisterIn'), 'tap');
+  });
   $('watch').addEventListener('click', () => goto('exit'));
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => goto('album')));
   $('steps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) goto(b.dataset.go); });
@@ -774,7 +787,7 @@ const photos = [...document.querySelectorAll('#strip .frame img')].map(i => i.ge
 const canister = createFilmCanister({ frames: photos, fit: 'auto' });
 await canister.userData.ready;
 scene.add(canister);
-const spin = canister.getObjectByName('Spin');
+const spin = canister.getObjectByName('Spin'), label = canister.getObjectByName('Label');
 // Film material (Pull and Feed strips): glossy base that picks up the environment, little self-light so it shades with the scene
 for (const name of ['Film', 'FilmFeed']) {
   const film = canister.getObjectByName(name), old = film.material;
@@ -795,6 +808,16 @@ const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, -0.28, 
   .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, Math.PI / 2)));
 const LEVEL_POS = toWorld(204, 292);
 const expo = t => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
+// The model viewer's Tap preset (0.6s): quick squash, spring back with a small overshoot, a wobble and a quarter-ish turn of the label
+const spring = (t, k = 9, d = 5) => 1 - Math.exp(-d * t) * Math.cos(k * t);
+const outBack = (t, s = 1.7) => 1 + (s + 1) * (t - 1) ** 3 + s * (t - 1) ** 2;
+const TAP_TURN = 0.35;
+const tapPose = (S, now) => {
+  const u = clamp01((now - S.tapAt) / 600);
+  const sc = u < 0.15 ? 1 - 0.08 * (u / 0.15) : 0.92 + 0.08 * spring((u - 0.15) / 0.85 * 1.1, 14, 6);
+  // each tap leaves the label turned a little further, so a new tap never snaps back
+  return { sc, rz: Math.sin(u * Math.PI) * 0.06 * (1 - u), spin: TAP_TURN * (Math.max(S.taps, 1) - 1 + (S.taps ? outBack(u) : 0)) };
+};
 const clamp01 = t => Math.min(Math.max(t, 0), 1);
 const q = new THREE.Quaternion(), p = new THREE.Vector3();
 
@@ -828,7 +851,11 @@ const frame = now => {
   p.copy(HERO_POS).add(new THREE.Vector3(0, -0.35 * (1 - e) + float, 0)).lerp(LEVEL_POS, l);
   canister.quaternion.copy(q);
   canister.position.copy(p).add(new THREE.Vector3(0, roll * 0.06, -roll));
-  canister.scale.setScalar(0.72 + 0.28 * e);
+  const tap = tapPose(S, now);
+  if (tap.rz && !rm) canister.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), tap.rz));
+  canister.scale.setScalar((0.72 + 0.28 * e) * (rm ? 1 : tap.sc));
+  // the model turns its Spin node; here only the label turns, so the film slot stays put for the import
+  label.rotation.y = Math.PI + tap.spin;
   spin.rotation.y = -roll / 0.5;
   canvas.style.opacity = x ? String(1 - clamp01((x - 0.55) / 0.45)) : '';
   const reel = (1 - clamp01(x / 0.3)) ** 3;
