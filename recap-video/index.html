@@ -148,8 +148,16 @@ button { font: inherit; color: inherit; }
 .strip-sway { position: absolute; inset: 0; transform-origin: 50% 0; transform: perspective(800px) rotateX(9deg); }
 .recap[data-step="loading"] .strip-sway, .recap[data-step="done"] .strip-sway { animation: sway 5s ease-in-out infinite alternate; }
 @keyframes sway { from { transform: perspective(800px) rotateX(9deg) rotate(-1.1deg); } to { transform: perspective(800px) rotateX(9deg) rotate(1.1deg); } }
-.strip { position: absolute; left: 36px; top: 0; width: 158px; will-change: transform; }
-.frame { width: 158px; height: 140px; margin-bottom: 7px; background: #111; overflow: hidden; }
+/* 35mm film sheet: dark base, sprocket holes down both edges (8 per frame), orange edge print between frames */
+.strip { position: absolute; left: 18px; top: 0; width: 194px; box-sizing: border-box; padding: 6px 18px 0; background: #0e0d0c; will-change: transform; }
+.strip::before, .strip::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 18px;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='19'><rect x='4.5' y='4' width='9' height='11' rx='2' fill='%231C1C1E'/></svg>") repeat-y 0 0 / 18px 19px;
+}
+.strip::before { left: 0; }
+.strip::after { right: 0; }
+.frame { width: 158px; height: 140px; background: #111; overflow: hidden; border-radius: 2px; }
+.edge { height: 12px; display: flex; align-items: center; justify-content: space-between; font: 500 6.5px/1 var(--font-mono); letter-spacing: .12em; color: #e8913a; opacity: .85; }
 .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .progress { position: absolute; left: 0; right: 0; top: 784px; height: 5px; background: #3a3a40; opacity: 0; transition: opacity .3s ease; }
 .progress i { display: block; height: 100%; width: 100%; background: #fff; transform-origin: 0 50%; transform: scaleX(0); }
@@ -427,7 +435,7 @@ button { font: inherit; color: inherit; }
   // ---- Film strip: newest at the top, so the oldest photo is the first to come out ----
   const strip = $('strip');
   // Photos are 9:16; each frame shows the band around its subject
-  strip.innerHTML = [...PHOTOS].reverse().map(p => `<div class="frame"><img src="${p.src}" alt="" style="object-position:${p.pos}"></div>`).join('');
+  strip.innerHTML = PHOTOS.map((p, i) => `<div class="frame"><img src="${p.src}" alt="" style="object-position:${p.pos}"></div><div class="edge"><span>MOMENTS 400</span><span>▸ ${i + 1}</span></div>`).reverse().join('');
   let stripH = 0;
   // Share of the strip pulled out over the loading time (keeps the tuned speed: ~706px of film per load)
   const FILM_SPEED = .96;
@@ -475,7 +483,7 @@ button { font: inherit; color: inherit; }
 
   // Manual winding: the film moves less than the finger (it has weight) and coasts a little after a flick.
   // Pulling down draws it out, pushing up winds it back in. It only moves the film — the import clock above is unaffected.
-  const DRAG_RATIO = .55;
+  const DRAG_RATIO = .385; // 0.7 × the previous .55
   let manual = true, pulled = 0, wind = null;
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
   const setPulled = p => {
