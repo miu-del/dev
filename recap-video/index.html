@@ -74,7 +74,7 @@ button { font: inherit; color: inherit; }
 .album { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; }
 .album::-webkit-scrollbar { display: none; }
 .hero { position: relative; height: 398px; }
-.hero img { position: absolute; inset: 0; width: 100%; height: 330px; object-fit: cover; object-position: 50% 30%; }
+.hero img { position: absolute; inset: 0; width: 100%; height: 330px; object-fit: cover; object-position: 50% 40%; }
 .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.35) 0, transparent 22%, transparent 34%, rgba(0,0,0,.7) 62%, #000 83%); }
 .hero .icon-btn { top: 56px; }
 .hero .back { left: 18px; }
@@ -251,7 +251,7 @@ button { font: inherit; color: inherit; }
       <!-- 1. Album -->
       <section class="album" id="album" aria-label="アルバム">
         <div class="hero">
-          <img src="assets/photo-center.jpg" alt="">
+          <img src="assets/couple-walk.jpg" alt="">
           <button class="icon-btn glass back" type="button" aria-label="戻る">
             <svg width="11" height="18" viewBox="0 0 12 20" fill="none"><path d="M10 2 2 10l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -281,7 +281,7 @@ button { font: inherit; color: inherit; }
         </div>
         <div class="grid" id="grid"></div>
       </section>
-      <button class="mine" type="button"><img src="assets/letter.jpg" alt="">自分の写真
+      <button class="mine" type="button"><img src="assets/friends-rooftop.jpg" alt="">自分の写真
         <svg width="7" height="11" viewBox="0 0 7 11" fill="none"><path d="m1.2 1.2 4.3 4.3-4.3 4.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
 
@@ -449,16 +449,11 @@ button { font: inherit; color: inherit; }
 
   // Already in shooting-time order — the video and the film strip both follow it
   const PHOTOS = [
-    { src: 'assets/photo-right.jpg',  time: '12:48', by: 'しゅん' },
-    { src: 'assets/photo-left.jpg',   time: '13:05', by: 'あおい' },
-    { src: 'assets/bride-wave.jpg',   time: '13:31', by: 'けんた' },
-    { src: 'assets/entrance.jpg',     time: '13:52', by: 'Mio' },
-    { src: 'assets/group.jpg',        time: '14:03', by: 'りな' },
-    { src: 'assets/toast.jpg',        time: '14:09', by: 'けんた' },
-    { src: 'assets/letter.jpg',       time: '14:36', by: 'あおい' },
-    { src: 'assets/cards.jpg',        time: '15:12', by: 'Yuka' },
-    { src: 'assets/party.jpg',        time: '15:47', by: 'しゅん' },
-    { src: 'assets/photo-center.jpg', time: '16:20', by: 'Mio' },
+    { src: 'assets/couple-walk.jpg',     by: 'しゅん', pos: '50% 42%' },
+    { src: 'assets/group-cutout.jpg',    by: 'あおい', pos: '50% 82%' },
+    { src: 'assets/toast-cutout.jpg',    by: 'けんた', pos: '50% 55%' },
+    { src: 'assets/friends-rooftop.jpg', by: 'Mio',    pos: '50% 42%' },
+    { src: 'assets/afterparty.jpg',      by: 'りな',   pos: '50% 52%' },
   ];
 
   // Fit the 402×874 phone into the viewport
@@ -476,13 +471,11 @@ button { font: inherit; color: inherit; }
 
   // ---- Film strip: newest at the top, so the oldest photo is the first to come out ----
   const strip = $('strip');
-  // Fewer frames over the same time = slower film. Pick them evenly across the day, still in time order.
-  const FILM_FRAMES = 6;
-  const filmPhotos = Array.from({ length: FILM_FRAMES }, (_, i) => PHOTOS[Math.round(i * (PHOTOS.length - 1) / (FILM_FRAMES - 1))]);
-  strip.innerHTML = [...filmPhotos].reverse().map(p => `<div class="frame"><img src="${p.src}" alt=""></div>`).join('');
+  // Photos are 9:16; each frame shows the band around its subject
+  strip.innerHTML = [...PHOTOS].reverse().map(p => `<div class="frame"><img src="${p.src}" alt="" style="object-position:${p.pos}"></div>`).join('');
   let stripH = 0;
-  // Film speed relative to pulling the whole strip out over the loading time (0.8 = 20% slower)
-  const FILM_SPEED = .8;
+  // Share of the strip pulled out over the loading time (keeps the tuned speed: ~706px of film per load)
+  const FILM_SPEED = .96;
   const setStrip = p => {
     stripH = stripH || strip.offsetHeight;
     strip.style.transform = `translateY(${((p * FILM_SPEED - 1) * stripH).toFixed(1)}px)`;
@@ -525,14 +518,14 @@ button { font: inherit; color: inherit; }
     loadRaf = requestAnimationFrame(tick);
   };
 
-  // Manual winding: the film moves less than the finger (it has weight), coasts a little after a flick,
-  // and never goes back in. It only moves the film — the import clock above is unaffected.
+  // Manual winding: the film moves less than the finger (it has weight) and coasts a little after a flick.
+  // Pulling down draws it out, pushing up winds it back in. It only moves the film — the import clock above is unaffected.
   const DRAG_RATIO = .55;
   let manual = true, pulled = 0, wind = null;
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
   const hubs = [...recap.querySelectorAll('.hub')];
   const setPulled = p => {
-    pulled = Math.min(1, Math.max(pulled, p));
+    pulled = Math.min(1, Math.max(0, p));
     setStrip(pulled);
     const deg = pulled * travel() * 1.3; // spool turns as film comes off it
     hubs.forEach(h => h.style.transform = `rotate(${deg}deg)`);
@@ -543,7 +536,7 @@ button { font: inherit; color: inherit; }
       const dt = now - last; last = now;
       setPulled(pulled + v * dt / travel());
       v *= Math.pow(.84, dt / 16);
-      if (Math.abs(v) > .01 && pulled < 1) filmRaf = requestAnimationFrame(tick);
+      if (Math.abs(v) > .01 && pulled > 0 && pulled < 1) filmRaf = requestAnimationFrame(tick);
     };
     filmRaf = requestAnimationFrame(tick);
   };
@@ -575,14 +568,14 @@ button { font: inherit; color: inherit; }
     if (!wind) return;
     const now = performance.now(), dy = (e.clientY - wind.y) / scale(), dt = Math.max(1, now - wind.t);
     wind.y = e.clientY; wind.t = now;
-    if (dy > 0) setPulled(pulled + dy * DRAG_RATIO / travel());
-    wind.v = .6 * wind.v + .4 * Math.max(0, dy * DRAG_RATIO / dt);
+    setPulled(pulled + dy * DRAG_RATIO / travel());
+    wind.v = .6 * wind.v + .4 * dy * DRAG_RATIO / dt;
   });
   const release = () => {
     if (!wind) return;
     windEl.classList.remove('grabbing');
     // A pause before letting go means no flick
-    if (performance.now() - wind.t < 80) coast(Math.min(wind.v, .7));
+    if (performance.now() - wind.t < 80) coast(Math.max(-.7, Math.min(wind.v, .7)));
     wind = null;
   };
   windEl.addEventListener('pointerup', release);
@@ -591,7 +584,7 @@ button { font: inherit; color: inherit; }
     e.preventDefault();
     cancelAnimationFrame(filmRaf);
     recap.classList.add('touched');
-    if (e.deltaY > 0) setPulled(pulled + e.deltaY * (e.deltaMode ? 30 : 1) * DRAG_RATIO / travel());
+    setPulled(pulled + e.deltaY * (e.deltaMode ? 30 : 1) * DRAG_RATIO / travel());
   }, { passive: false });
 
   const goto = next => {
