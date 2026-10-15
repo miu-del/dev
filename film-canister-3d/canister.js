@@ -1,5 +1,5 @@
 // Procedural "Moments" 35mm film cartridge (patrone) with a pull-out film strip.
-// Units: 1 = cartridge diameter (≈ 22 mm). The cartridge axis is local +Y (plain end up, spool end down).
+// Units: 1 = cartridge diameter (25 mm; overall length with caps ≈ 47.5 mm). The cartridge axis is local +Y (plain end up, spool end down).
 // Node tree (names are kept in the exported GLB so animation tools can target them):
 //   FilmCanister            ← place / pose / float this
 //     Spin                  ← rotate around Y to roll the label
@@ -12,28 +12,30 @@ import * as THREE from 'three';
 
 export const DIM = {
   radius: 0.5,       // label radius
-  length: 1.9,       // label length (between the caps)
+  length: 1.48,      // label length between the caps → 1.88 overall with caps, like a real 25 × 47 mm cartridge
   capRadius: 0.535,  // outer radius of the metal caps
   capHeight: 0.2,
 };
 
-// 35mm film, in the same units (35 mm wide strip → 1.6). Frames are 36×24 mm on a 38 mm pitch,
-// with 8 perforations per frame. Everything along the strip is measured from the leader tip.
+// 35mm film, written in millimetres and converted to model units (1 = 25 mm).
+// Frames are 36×24 mm on a 38 mm pitch with 8 perforations per frame.
+// Everything along the strip is measured from the leader tip.
+const mm = v => v / 25;
 export const FILM = {
-  width: 1.6,
-  leader: 1.6,          // tongue + taper + a little blank film before frame 1
-  tongue: 0.95,         // half-width part of the leader
-  taper: 0.45,          // curved cut from half to full width
-  pitch: 1.737,
-  frameW: 1.645,
-  frameH: 1.096,
-  perfPitch: 0.217,
-  perfAlong: 0.09,
-  perfAcross: 0.128,
-  perfEdge: 0.092,      // film edge → perforation
+  width: mm(35),
+  leader: mm(35),       // tongue + taper + a little blank film before frame 1
+  tongue: mm(21),       // half-width part of the leader
+  taper: mm(10),        // curved cut from half to full width
+  pitch: mm(38),
+  frameW: mm(36),
+  frameH: mm(24),
+  perfPitch: mm(4.75),
+  perfAlong: mm(1.98),
+  perfAcross: mm(2.79),
+  perfEdge: mm(2),      // film edge → perforation
   frames: 6,
   curl: 0.12,           // the strip bends gently toward the viewer as it comes out
-  pxPerUnit: 200,
+  pxPerUnit: 230,
 };
 FILM.length = FILM.leader + FILM.frames * FILM.pitch;
 // How far the "Pull" animation draws the film out: the leader plus two full frames.
@@ -137,9 +139,9 @@ const sizeOf = img => [img.naturalWidth || img.videoWidth || img.width, img.natu
 // ---------- label ----------
 // Canvas U wraps the circumference, V runs along the axis (canvas top = CapTop end).
 // The artwork's width spans the label length, so "Moments" reads from the CapTop end to the spool end.
-// The art is centred on the side facing the camera and mirrored around the back to fill the wrap;
-// the seam lands under the Lip.
-const LABEL_FOCUS = 0.47; // fraction of the artwork's height that faces the camera (between title and copy)
+// The whole artwork is used once (blue panel and the white copy panel). It is narrower than the wrap,
+// so the blue top edge and the white bottom edge are extended around the back to meet at the seam under the Lip.
+const LABEL_FOCUS = 0.33; // fraction of the artwork's height that faces the camera (between title and copy)
 
 export function drawLabel(canvas, img) {
   const H = canvas.height, W = canvas.width;
@@ -151,18 +153,29 @@ export function drawLabel(canvas, img) {
   ctx.translate(W / 2, 0);
   ctx.rotate(Math.PI / 2);         // art +x → down the axis; art up → canvas +x
   // in this frame: x ∈ [0, H] along the axis, y runs around the can (y = 0 faces the camera)
-  const y0 = -LABEL_FOCUS * th;
-  for (let k = -2; k <= 2; k++) {
-    ctx.save();
-    ctx.translate(0, y0 + k * th);
-    if (k % 2) { ctx.translate(0, th); ctx.scale(1, -1); } // mirror every other tile so edges meet
-    ctx.drawImage(img, 0, 0, H, th);
-    ctx.restore();
-  }
+  const y0 = -LABEL_FOCUS * th, reach = W / 2 + 2;
+  // white panel continues past the bottom edge
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, y0 + th - 1, H, reach - (y0 + th) + 1);
+  // blue panel continues past the top edge: stretch its first rows so the gradient along the axis carries on
+  ctx.drawImage(img, 0, 2, iw, 6, 0, -reach, H, reach + y0 + 1);
+  ctx.drawImage(img, 0, y0, H, th);
   ctx.restore();
+  // the stretched strip has no grain; add some so it matches the artwork's print texture
+  const x0 = Math.max(0, Math.floor(W / 2 - y0)), gw = W - x0;
+  if (gw > 0) {
+    const d = ctx.getImageData(x0, 0, gw, H);
+    let seed = 7;
+    for (let i = 0; i < d.data.length; i += 4) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      const n = ((seed / 4294967296) - 0.5) * 46;
+      d.data[i] += n; d.data[i + 1] += n; d.data[i + 2] += n;
+    }
+    ctx.putImageData(d, x0, 0);
+  }
 }
 
-function makeLabelTexture(width = 2560) {
+function makeLabelTexture(width = 3072) {
   const W = width;
   const H = Math.round(W * DIM.length / (Math.PI * 2 * DIM.radius));
   const c = makeCanvas(W, H);

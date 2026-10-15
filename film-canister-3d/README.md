@@ -11,7 +11,7 @@
 | ファイル | 用途 |
 | --- | --- |
 | `canister.js` | モデル本体。`createFilmCanister()` で three.js の Group を返す。コマ画像の差し替えAPI付き |
-| `assets/label.jpg` | ラベルのアートワーク（幅＝缶の長さ方向） |
+| `assets/label.jpg` | ラベルのアートワーク（幅＝缶の長さ方向。青と白のパネルをそのまま一周に巻く） |
 | `assets/frame-*.jpg` | コマのサンプル画像 |
 | `film-canister.glb` | Web / Spline / Blender など。Idle・Spin・Open・Pull のクリップ入り。フィルムは缶の中にしまった状態 |
 | `film-canister.usdz` | iOS（RealityKit / Quick Look）。アニメーションなし。リーダーが少し出た状態 |
@@ -30,7 +30,7 @@ FilmCanister   ← 位置・姿勢・浮遊（Idle）
     CapSpool   ← スプール側のフタ
 ```
 
-1単位 = 缶の直径（約22mm）。缶の軸はローカルの +Y（上フタ側）。
+1単位 = 缶の直径（25mm）。フタ込みの全長は約47mm（1.88）。缶の軸はローカルの +Y（上フタ側）。
 
 ## コマに画像を入れる（three.js）
 
@@ -57,7 +57,7 @@ await canister.userData.setFrames([img1, img2]);  // あとから差し替え
 
 マテリアル `FilmStrip` のテクスチャを差し替えます。テクスチャの割り付け：
 
-- 横（U）＝ フィルムの長さ方向。U = 0 がリーダーの先端、U = 1 が末尾（全長 `FILM.length` = 12.02）
+- 横（U）＝ フィルムの長さ方向。U = 0 がリーダーの先端、U = 1 が末尾（全長 `FILM.length` = 10.52）
 - 縦（V）＝ フィルムの幅方向
 - コマ i（0 始まり）の範囲は `frameRectUV(i)` で取得できます。1コマ目は U ≈ 0.137〜0.274、以降 1コマごとに U += 0.1445、V は 0.157〜0.843
 - パーフォレーションとリーダーの切り欠きはアルファで抜いています（alphaTest 0.5）。差し替え画像もアルファ付きPNGにするか、`drawFilmStrip()` で作ったキャンバスを使うのが簡単です
