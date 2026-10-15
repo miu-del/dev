@@ -141,6 +141,21 @@ button { font: inherit; color: inherit; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 /* Film: a column of frames pulled down out of the canister's lip; masked into the dark below */
+/* 3D patrone + film (three.js, module script at the end). Until it is ready — or if WebGL is unavailable —
+   the 2D canister and strip above stay in place. */
+.stage3d {
+  position: absolute; left: 0; top: 0; width: 402px; height: 874px; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .4s ease;
+  -webkit-mask-image: linear-gradient(#000 0, #000 62%, transparent 79%); mask-image: linear-gradient(#000 0, #000 62%, transparent 79%);
+}
+/* Black glow behind the 3D canister: its own layer, so it does not darken what shows through the perforations */
+.glow3d {
+  position: absolute; left: 50%; top: 270px; width: 380px; height: 270px; margin-left: -190px; z-index: 2; pointer-events: none; opacity: 0;
+  background: radial-gradient(closest-side, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, transparent);
+  transition: top 1.6s var(--ease-out-expo), opacity .4s ease;
+}
+.recap[data-step="loading"] .glow3d, .recap[data-step="done"] .glow3d { top: 115px; }
+.recap.three .stage3d, .recap.three .glow3d { opacity: 1; }
+.recap.three .canister, .recap.three .strip-window { visibility: hidden; }
 .strip-window {
   position: absolute; left: 50%; top: 296px; width: 230px; height: 392px; margin-left: -115px; z-index: 2; overflow: hidden;
   -webkit-mask-image: linear-gradient(#000 0, #000 62%, transparent 100%); mask-image: linear-gradient(#000 0, #000 62%, transparent 100%);
@@ -310,6 +325,9 @@ button { font: inherit; color: inherit; }
         <div class="canister" aria-hidden="true">
           <div class="canister-in" id="canisterIn"><img src="assets/patrone.png" alt=""></div>
         </div>
+
+        <div class="glow3d" aria-hidden="true"></div>
+        <canvas class="stage3d" id="stage3d" aria-hidden="true"></canvas>
 
         <div class="recap-info">
           <div class="recap-info-in" id="recapInfo">
@@ -490,6 +508,7 @@ button { font: inherit; color: inherit; }
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
   const setPulled = p => {
     pulled = Math.min(1, Math.max(0, p));
+    R3.pulled = pulled; R3.travelPx = travel();
     setStrip(pulled);
   };
   const coast = v => {
@@ -549,12 +568,16 @@ button { font: inherit; color: inherit; }
     setPulled(pulled + e.deltaY * (e.deltaMode ? 30 : 1) * DRAG_RATIO / travel());
   }, { passive: false });
 
+  // Shared with the 3D patrone (module script below), which reads it every frame
+  const R3 = window.recapState = { step: 'album', pulled: 0, travelPx: 0, introAt: 0, levelAt: -1e9 };
+
   const goto = next => {
     clearFlow();
     if (next !== 'viewer') player.stop();
     step = next;
     document.querySelectorAll('#steps button').forEach(b => b.dataset.go === next ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
 
+    if (next === 'album' || next === 'viewer') R3.step = next;
     if (next === 'album') {
       recap.classList.remove('open'); viewer.classList.remove('open');
       return;
@@ -567,7 +590,12 @@ button { font: inherit; color: inherit; }
     }
     viewer.classList.remove('open');
     const wasOpen = recap.classList.contains('open');
-    if (next === 'intro' || !wasOpen) {
+    const snap = next === 'intro' || !wasOpen;
+    if (next === 'intro') { pulled = 0; R3.pulled = 0; R3.introAt = performance.now(); }
+    // The patrone levels out when leaving the intro; any other way in, it is already level
+    R3.levelAt = snap ? -1e9 : R3.step === 'intro' ? performance.now() : R3.levelAt;
+    R3.step = next;
+    if (snap) {
       // Snap the layout to this step without tweening from wherever it was left
       recap.classList.add('no-trans');
       recap.dataset.step = next;
@@ -649,6 +677,87 @@ button { font: inherit; color: inherit; }
 
   goto('album');
 })();
+</script>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+// 3D patrone: the Moments cartridge model (canister/canister.js) with the album photos on its film.
+// The flow script above owns the state (window.recapState); this only draws it.
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createFilmCanister, FILM, HERO_POSE, applyStipple } from './canister/canister.js';
+
+const recap = document.getElementById('recap');
+const canvas = document.getElementById('stage3d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+// Five photos → five frames; the film hangs almost straight down instead of curling at the camera
+FILM.frames = 5;
+FILM.length = FILM.leader + FILM.frames * FILM.pitch;
+FILM.curl = 0.03;
+
+const W = 402, H = 874, FOV = 22;
+const PX = 134;                                    // screen px per model unit (1 unit = cartridge diameter) at z = 0
+const DIST = H / PX / 2 / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+const toWorld = (x, y) => new THREE.Vector3((x - W / 2) / PX, (H / 2 - y) / PX, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(W, H, false);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+const camera = new THREE.PerspectiveCamera(FOV, W / H, 0.1, 100);
+camera.position.set(0, 0, DIST);
+const key = new THREE.DirectionalLight('#fff6ea', 2.6); key.position.set(-3, 4, 4); scene.add(key);
+const rim = new THREE.DirectionalLight('#bcd0ff', 1.4); rim.position.set(3, 1, -3); scene.add(rim);
+scene.add(new THREE.HemisphereLight('#ffffff', '#30304a', 0.35));
+
+await document.fonts.load('500 12px "JetBrains Mono"').catch(() => {}); // film edge print
+const photos = [...document.querySelectorAll('#strip .frame img')].map(i => i.getAttribute('src')).reverse();
+const canister = createFilmCanister({ frames: photos, fit: 'auto', negative: false });
+await canister.userData.ready;
+applyStipple(canister);
+scene.add(canister);
+
+// Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
+const HERO_Q = new THREE.Quaternion().setFromEuler(HERO_POSE.rotation);
+const HERO_POS = toWorld(201, 400);
+const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, Math.PI / 2));
+const LEVEL_POS = toWorld(201, 250);
+const expo = t => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
+const clamp01 = t => Math.min(Math.max(t, 0), 1);
+const q = new THREE.Quaternion(), p = new THREE.Vector3();
+
+const frame = now => {
+  requestAnimationFrame(frame);
+  if (!recap.classList.contains('open')) return;
+  const S = window.recapState;
+  const rm = reduceMotion.matches;
+  // Entrance: rise and settle into the hero pose (same timing as the 2D version)
+  const e = rm ? 1 : expo(clamp01((now - S.introAt) / 1600));
+  // Leaving the intro: swing level and move up over 1.6s
+  const l = S.step === 'intro' ? 0 : rm ? 1 : expo(clamp01((now - S.levelAt) / 1600));
+  const float = rm ? 0 : Math.sin(now / 640) * 0.04 * (1 - l);
+
+  q.copy(HERO_Q).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (1 - e) * -0.28));
+  q.slerp(LEVEL_Q, l);
+  p.copy(HERO_POS).add(new THREE.Vector3(0, -0.35 * (1 - e) + float, 0)).lerp(LEVEL_POS, l);
+  canister.quaternion.copy(q);
+  canister.position.copy(p);
+  canister.scale.setScalar(0.72 + 0.28 * e);
+  // Film: the same px travel the 2D strip used, so the tuned speeds carry over
+  canister.userData.setFilmOut(S.pulled * S.travelPx / PX);
+  renderer.render(scene, camera);
+  if (!recap.classList.contains('three')) recap.classList.add('three');
+};
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>
