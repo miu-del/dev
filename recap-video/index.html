@@ -154,9 +154,8 @@ button { font: inherit; color: inherit; }
    the 2D canister and strip above stay in place. */
 .stage3d {
   position: absolute; left: 0; top: 0; width: 402px; height: 874px; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .4s ease;
-  --fade: 860px;
-  -webkit-mask-image: linear-gradient(#000 0, #000 calc(var(--fade) - 130px), transparent var(--fade)); mask-image: linear-gradient(#000 0, #000 calc(var(--fade) - 130px), transparent var(--fade));
-  transition: opacity .4s ease, --fade .7s var(--ease-out-expo);
+  -webkit-mask-image: linear-gradient(#000 0, #000 730px, transparent 860px); mask-image: linear-gradient(#000 0, #000 730px, transparent 860px);
+  transition: opacity .4s ease;
 }
 /* Black glow behind the 3D canister: its own layer, so it does not darken what shows through the perforations */
 .glow3d {
@@ -165,8 +164,10 @@ button { font: inherit; color: inherit; }
   transition: top 1.6s var(--ease-out-expo), width 1.6s var(--ease-out-expo), height 1.6s var(--ease-out-expo), margin-left 1.6s var(--ease-out-expo), opacity .4s ease;
 }
 .recap[data-step="loading"] .glow3d, .recap[data-step="done"] .glow3d { top: 100px; height: 400px; width: 400px; margin-left: -200px; }
-.recap[data-step="done"] .stage3d, .recap[data-step="exit"] .stage3d { --fade: 715px; }
-@property --fade { syntax: '<length>'; inherits: false; initial-value: 860px; }
+/* Done: the film's lower end dissolves behind the button — the shade fades in where it is rather than rising */
+.film-shade { position: absolute; left: 0; right: 0; top: 585px; bottom: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity .5s .15s ease;
+  background: linear-gradient(rgba(28,28,30,0), #1C1C1E 130px); }
+.recap[data-step="done"] .film-shade, .recap[data-step="exit"] .film-shade { opacity: 1; }
 .recap.three .stage3d, .recap.three .glow3d { opacity: 1; }
 /* Tap target over the patrone on its own screen */
 .tap3d { position: absolute; left: 60px; top: 165px; width: 285px; height: 255px; z-index: 5; border: 0; padding: 0; background: none; cursor: pointer; display: none; -webkit-tap-highlight-color: transparent; }
@@ -214,10 +215,10 @@ button { font: inherit; color: inherit; }
   position: absolute; left: 16px; right: 16px; top: 726px; height: 59px; z-index: 4;
   border-radius: 14px; border: 1px solid #4b52ff; background: linear-gradient(180deg, #2f37ea, #1d22b8); color: #fff;
   font: 700 16px/1 var(--font-jp); letter-spacing: .04em; cursor: pointer;
-  opacity: 0; visibility: hidden; transform: translateY(14px) scale(.96);
-  transition: opacity .45s ease, transform .7s var(--ease-out-expo), visibility 0s .45s;
+  opacity: 0; visibility: hidden;
+  transition: opacity .45s ease, visibility 0s .45s;
 }
-.recap[data-step="done"] .watch { opacity: 1; visibility: visible; transform: none; transition: opacity .45s .15s ease, transform .7s .15s var(--ease-out-expo), visibility 0s; }
+.recap[data-step="done"] .watch { opacity: 1; visibility: visible; transition: opacity .5s .15s ease, visibility 0s; } /* appears in place, no slide */
 .watch:active { transform: scale(.97); }
 /* Patrone screen waits for the viewer: the film only starts once they press this */
 .cta-start { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s ease, visibility 0s .3s; }
@@ -371,6 +372,7 @@ button { font: inherit; color: inherit; }
 
         <div class="progress" id="progress" role="progressbar" aria-label="写真の取り込み" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progressFill"></i></div>
         <div class="cta-start"><button class="watch" type="button" id="startImport">Load pictures</button></div>
+        <div class="film-shade" aria-hidden="true"></div>
         <button class="watch" type="button" id="watch">動画を見る</button>
       </section>
 
@@ -538,8 +540,9 @@ button { font: inherit; color: inherit; }
   // Manual winding: the film moves less than the finger (it has weight) and coasts a little after a flick.
   // Pulling down draws it out, pushing up winds it back in. It only moves the film — the import clock above is unaffected.
   // Leader pop from the model's pullCurve: ~1.35 cartridge widths (×134px) in 0.7s, once the patrone has swung level
-  const LEADER_POP_PX = 1.35 * 134, POP_DELAY = 900;
-  const popAt = ms => { const t = (ms - POP_DELAY) / 700; return t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) ** 3; };
+  // Manual waits for the patrone to swing level (something to grab); auto starts almost at once
+  const LEADER_POP_PX = 1.35 * 134, popDelay = () => (manual ? 900 : 150);
+  const popAt = ms => { const t = (ms - popDelay()) / 700; return t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) ** 3; };
   const DRAG_RATIO = .539; // 1.4 × the previous .385
   let manual = true, pulled = 0, wind = null;
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
@@ -567,7 +570,7 @@ button { font: inherit; color: inherit; }
     const pop = now => {
       if (recap.classList.contains('touched')) return;
       setPulled(popAt(now - t0) * LEADER_POP_PX / travel());
-      if (now - t0 < POP_DELAY + 700) filmRaf = requestAnimationFrame(pop);
+      if (now - t0 < popDelay() + 700) filmRaf = requestAnimationFrame(pop);
     };
     filmRaf = requestAnimationFrame(pop);
   };
@@ -629,6 +632,7 @@ button { font: inherit; color: inherit; }
     // The patrone levels out when leaving the intro; any other way in, it is already level
     R3.levelAt = snap ? -1e9 : R3.step === 'intro' ? performance.now() : R3.levelAt;
     R3.step = next;
+    R3.popDelay = popDelay();
     if (snap) {
       // Snap the layout to this step without tweening from wherever it was left
       recap.classList.add('no-trans');
@@ -845,7 +849,7 @@ const frame = now => {
     q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.012 * ramp * (0.5 - 0.5 * Math.cos(u * Math.PI * 2))));
   }
   // a small tug on the cartridge when the leader is yanked out (as in the model's Pull animation)
-  const tt = (now - S.levelAt) / 1000 - 1.02;
+  const tt = (now - S.levelAt - (S.popDelay ?? 900) - 120) / 1000;
   if (S.step !== 'intro' && !rm) q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.exp(-(tt * tt) / 0.01) * 0.04));
   p.copy(HERO_POS).add(new THREE.Vector3(0, -0.35 * (1 - e) + float, 0)).lerp(LEVEL_POS, l);
   canister.quaternion.copy(q);
