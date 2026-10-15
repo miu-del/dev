@@ -45,9 +45,9 @@ export const COLORS = {
   metal: '#141418',
   filmBase: '#0e0d0c',      // positive strip
   edgePrint: '#f0a640',
-  negBase: '#94683f',       // colour-negative mask, pulled toward sepia (also what clear film looks like)
-  negShadow: '#2c1c10',     // densest point on the negative, so blacks stay brown
-  negPrint: '#2a1a0d',
+  negBase: '#6f4b2d',       // colour-negative mask, pulled toward sepia (also what clear film looks like)
+  negShadow: '#21150b',     // densest point on the negative, so blacks stay brown
+  negPrint: '#1e1309',
 };
 
 const asset = name => new URL(`./assets/${name}`, import.meta.url).href;
