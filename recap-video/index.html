@@ -107,7 +107,7 @@ button { font: inherit; color: inherit; }
 .mine img { width: 32px; height: 32px; border-radius: 16px; object-fit: cover; }
 
 /* ---------- 2–4. Import (patrone → film → ready) ---------- */
-.recap { position: absolute; inset: 0; z-index: 10; background: #000; opacity: 0; visibility: hidden; transform: translateY(18px); transition: opacity .35s ease, transform .5s var(--ease-out-expo), visibility 0s .35s; }
+.recap { position: absolute; inset: 0; z-index: 10; background: #1C1C1E; opacity: 0; visibility: hidden; transform: translateY(18px); transition: opacity .35s ease, transform .5s var(--ease-out-expo), visibility 0s .35s; }
 .recap.open { opacity: 1; visibility: visible; transform: none; transition: opacity .35s ease, transform .5s var(--ease-out-expo), visibility 0s; }
 .recap .close { right: 18px; top: 62px; }
 .recap.no-trans, .recap.no-trans * { transition: none !important; }
@@ -123,8 +123,8 @@ button { font: inherit; color: inherit; }
   transition: top 1.6s var(--ease-out-expo), transform 1.6s var(--ease-out-expo);
 }
 .recap[data-step="loading"] .canister, .recap[data-step="done"] .canister { top: 176px; transform: rotate(0deg); }
-/* The canister is mostly black: a faint rim and a blue glow keep its silhouette readable on the black screen */
-.canister img { width: 100%; height: 100%; display: block; filter: drop-shadow(0 0 .6px rgba(255,255,255,.55)) drop-shadow(0 10px 34px rgba(52,60,255,.35)); }
+/* A soft black glow sets the canister off the #1C1C1E screen; the faint rim keeps its dark edges readable */
+.canister img { width: 100%; height: 100%; display: block; filter: drop-shadow(0 0 .6px rgba(255,255,255,.55)) drop-shadow(0 10px 34px #000); }
 .canister-in.enter { animation: canIn 1.6s var(--ease-out-expo) both; }
 @keyframes canIn {
   from { opacity: 0; transform: translateY(46px) scale(.72) rotate(-16deg); filter: blur(6px); }
