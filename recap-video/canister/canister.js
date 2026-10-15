@@ -23,9 +23,9 @@ export const DIM = {
 const mm = v => v / 25;
 export const FILM = {
   width: mm(35),
-  leader: mm(35),       // tongue + taper + a little blank film before frame 1
-  tongue: mm(21),       // half-width part of the leader
-  taper: mm(10),        // curved cut from half to full width
+  leader: mm(22),       // tongue + taper + a little blank film before frame 1
+  tongue: mm(10),       // half-width part of the leader
+  taper: mm(8),         // curved cut from half to full width
   pitch: mm(38),
   frameW: mm(36),
   frameH: mm(24),
@@ -374,7 +374,7 @@ function makeLipGeometry() {
 // Pull timing shared by the viewer and the GLB clip: the leader pops out, a beat, then a smooth draw.
 export const PULL_DURATION = 2.2;
 export function pullCurve(t) {
-  const lead = 1.35;
+  const lead = FILM.leader * 0.95; // just the leader first
   if (t <= 0) return 0;
   if (t < 0.7) return lead * (1 - (1 - t / 0.7) ** 3);
   if (t < 0.85) return lead;
