@@ -102,6 +102,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
         <button data-anim="tap">タップ反応<small>Tap · 0.6s</small></button>
         <button data-anim="open">フタが開く<small>Open · 1.6s</small></button>
         <button data-anim="pull">フィルムを引き出す<small>Pull · 2.2s</small></button>
+        <button data-anim="feed">引き出し続ける<small>Feed · loop</small></button>
         <button data-anim="rewind">巻き戻す<small>Rewind · 1.2s</small></button>
         <button data-anim="still">静止<small>Hero pose</small></button>
       </div>
@@ -111,7 +112,6 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
       <span>Film</span>
       <label class="file">コマの画像を選ぶ<small id="frames-count">サンプル 3枚</small><input type="file" id="frames-in" accept="image/*" multiple></label>
       <label class="file">ラベル画像を選ぶ<small id="label-name">label.jpg</small><input type="file" id="label-in" accept="image/*"></label>
-      <label class="row">ネガにする <input type="checkbox" id="negative" checked></label>
       <label class="row">縦長の写真は横倒しで入れる <input type="checkbox" id="sideways" checked></label>
       <button id="frames-reset">サンプル画像に戻す</button>
       <p class="note">コマは6つ。画像が足りない分は繰り返して埋めます。横倒しは実物のフィルムと同じ入り方で、オフにすると正立のまま中央を切り抜きます。</p>
@@ -138,7 +138,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
         <button id="dl-png">PNG<small>透過 · 2x</small></button>
         <button id="dl-glb-file">同梱GLB<small>film-canister.glb</small></button>
       </div>
-      <p class="note">GLBには Idle / Spin / Open / Pull のアニメーションクリップと、いま入れているコマ画像が入ります。Pull はモーフターゲットで再生します。イラスト風の粒子はビューア側のシェーダーなので書き出しには含まれません。</p>
+      <p class="note">GLBには Idle / Spin / Open / Pull / Feed のアニメーションクリップと、いま入れているコマ画像が入ります。Pull はモーフターゲットで再生します。イラスト風の粒子はビューア側のシェーダーなので書き出しには含まれません。</p>
     </div>
   </aside>
 </div>
@@ -156,7 +156,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
 import {
-  createFilmCanister, createClips, bakeFilmMorphs, pullCurve, HERO_POSE, DIM, FILM, PULL_DURATION,
+  createFilmCanister, createClips, bakeFilmMorphs, pullCurve, HERO_POSE, DIM, FILM, PULL_DURATION, FEED_SECONDS_PER_FRAME,
   DEFAULT_LABEL, DEFAULT_FRAMES, applyStipple, stippleUniforms,
 } from './canister.js';
 
@@ -204,7 +204,7 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // What goes on the label and in the frames; exports reuse the same sources
-const source = { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES, fit: 'auto', negative: true };
+const source = { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES, fit: 'auto' };
 const canister = createFilmCanister(source);
 await canister.userData.ready;
 const spin = canister.getObjectByName('Spin');
@@ -243,9 +243,10 @@ const capY = DIM.length / 2;
 
 let filmRest = 0; // film left outside after Pull, until Rewind
 
-function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, capLift = 0, capTilt = 0, film = filmRest } = {}) {
+function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, capLift = 0, capTilt = 0, film = filmRest, feed = null } = {}) {
   // As the strip comes out (down-left), slide the cartridge up-right and zoom out so the frames stay in view
-  const f = clamp01(film / FILM.pullOut);
+  const f = feed != null ? 1 : clamp01(film / FILM.pullOut);
+  canister.userData.setFilmFeed(feed);
   canister.position.set(x + 0.6 * f, y + 0.85 * f, 0);
   canister.rotation.set(rx, ry, rz);
   canister.scale.setScalar(s * (1 - 0.5 * f));
@@ -317,6 +318,18 @@ const presets = {
     },
     done: () => { filmRest = 0; },
   },
+  // Endless pull: film streams out at a steady rate, one frame every FEED_SECONDS_PER_FRAME.
+  // One loop = one pass through every image, so it repeats seamlessly.
+  feed: {
+    loop: true,
+    get dur() { return (canister.userData.feedCycle / FILM.pitch) * FEED_SECONDS_PER_FRAME; },
+    at: t => {
+      const per = FEED_SECONDS_PER_FRAME, u = (t % per) / per;
+      // the cartridge gives a small tug with every frame that passes
+      const tug = 0.012 * (0.5 - 0.5 * Math.cos(u * Math.PI * 2));
+      pose({ film: 0, feed: (t / per) * FILM.pitch, rz: H.z - tug, y: -tug * 0.5 });
+    },
+  },
 };
 
 let current = 'idle', t0 = performance.now(), speed = 1, clock = 0, last = performance.now();
@@ -381,10 +394,6 @@ document.getElementById('sideways').addEventListener('change', e => {
   source.fit = e.target.checked ? 'auto' : 'cover';
   canister.userData.setFrames(source.frames, { fit: source.fit });
 });
-document.getElementById('negative').addEventListener('change', e => {
-  source.negative = e.target.checked;
-  canister.userData.setFrames(source.frames, { negative: source.negative });
-});
 document.getElementById('frames-reset').addEventListener('click', async () => {
   Object.assign(source, { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES });
   framesIn.value = labelIn.value = '';
@@ -395,10 +404,11 @@ document.getElementById('frames-reset').addEventListener('click', async () => {
 
 // ---------- export ----------
 // Export a clean copy (no stipple shader hook, hero pose on the root) so the file is engine-agnostic.
-async function exportModel({ filmOut = 0 } = {}) {
+async function exportModel({ filmOut = 0, bake = false } = {}) {
   const model = createFilmCanister({ ...source, filmOut });
   await model.userData.ready;
   model.rotation.copy(HERO_POSE.rotation);
+  if (bake) bakeFilmMorphs(model); // film rests inside; Pull / Feed draw it out
   model.userData = {}; // functions and promises don't belong in glTF extras
   return model;
 }
@@ -410,9 +420,8 @@ function save(blob, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 async function buildGLB() {
-  const model = await exportModel();
-  bakeFilmMorphs(model); // film rests inside; the Pull clip draws it out
-  return new GLTFExporter().parseAsync(model, { binary: true, animations: createClips(), maxTextureSize: 4096 });
+  const model = await exportModel({ bake: true });
+  return new GLTFExporter().parseAsync(model, { binary: true, animations: createClips(model), maxTextureSize: 4096 });
 }
 async function buildUSDZ() {
   // USDZ has no morph animation here, so it ships with the leader sticking out like a fresh roll
