@@ -489,8 +489,8 @@ button { font: inherit; color: inherit; }
   };
 
   // The import always takes the set time, whether or not the viewer winds the film.
-  // In auto mode the film comes out at 0.7× the import's pace; the rest rolls out when it finishes.
-  const AUTO_FILM = .7;
+  // In auto mode the film comes out at 0.98× the import's pace (0.7 × 1.4); after it finishes it keeps going at that pace.
+  const AUTO_FILM = .98;
   const startLoading = () => {
     const T = $('loadSecs').value * 1000;
     const t0 = performance.now();
@@ -508,7 +508,7 @@ button { font: inherit; color: inherit; }
 
   // Manual winding: the film moves less than the finger (it has weight) and coasts a little after a flick.
   // Pulling down draws it out, pushing up winds it back in. It only moves the film — the import clock above is unaffected.
-  const DRAG_RATIO = .385; // 0.7 × the previous .55
+  const DRAG_RATIO = .539; // 1.4 × the previous .385
   let manual = true, pulled = 0, wind = null;
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
   const setPulled = p => {
@@ -736,7 +736,10 @@ const spin = canister.getObjectByName('Spin');
 // Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
 const HERO_Q = new THREE.Quaternion().setFromEuler(HERO_POSE.rotation);
 const HERO_POS = toWorld(201, 400);
-const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, Math.PI / 2));
+// Winding pose: lying on its side, then tipped a little (turned ~18° to show the spool end, rolled ~8°) so it is not dead level.
+// The film hangs from the cartridge, so it tips with it.
+const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.32, -0.14))
+  .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, Math.PI / 2)));
 const LEVEL_POS = toWorld(201, 250);
 const expo = t => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 const clamp01 = t => Math.min(Math.max(t, 0), 1);
