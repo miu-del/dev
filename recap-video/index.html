@@ -222,7 +222,6 @@ button { font: inherit; color: inherit; }
 .seg button { appearance: none; border: 1px solid var(--rail-line); background: #1a1a25; border-radius: 8px; padding: 9px 0; cursor: pointer; font: 500 13px/1 var(--font-jp); color: var(--ink-dim); }
 .seg button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, #1a1a25); color: var(--ink); }
 .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-fieldset[disabled] .range { opacity: .45; }
 .range output { font: 500 13px/1 var(--font-mono); min-width: 3ch; text-align: right; }
 .steps button:focus-visible, .range input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
@@ -420,8 +419,8 @@ fieldset[disabled] .range { opacity: .45; }
       </div>
     </fieldset>
 
-    <fieldset class="group" id="autoOpts" disabled>
-      <legend>ローディング時間（自動のとき）</legend>
+    <fieldset class="group">
+      <legend>ローディング時間</legend>
       <div class="range">
         <input type="range" id="loadSecs" min="10" max="20" step="1" value="20" aria-label="ローディング時間（秒）">
         <output id="loadSecsOut" for="loadSecs">20s</output>
@@ -501,14 +500,16 @@ fieldset[disabled] .range { opacity: .45; }
   // ---- Flow ----
   // album → intro (patrone appears) → loading (film comes out) → done (動画を見る) → viewer
   let step = 'album';
-  let timers = [], loadRaf = 0;
-  const clearFlow = () => { timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(loadRaf); };
+  // loadRaf drives the import clock; filmRaf moves the film on its own (coasting, peeking, finishing)
+  let timers = [], loadRaf = 0, filmRaf = 0;
+  const clearFlow = () => { timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(loadRaf); cancelAnimationFrame(filmRaf); };
   const replay = el => { el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter'); };
   const setProgress = p => {
     $('progressFill').style.transform = `scaleX(${p})`;
     $('progress').setAttribute('aria-valuenow', Math.round(p * 100));
   };
 
+  // The import always takes the set time, whether or not the viewer winds the film
   const startLoading = () => {
     const T = $('loadSecs').value * 1000;
     const t0 = performance.now();
@@ -516,36 +517,48 @@ fieldset[disabled] .range { opacity: .45; }
       const u = Math.min(1, (now - t0) / T);
       // Mostly linear with a gentle surge and lull, so it reads as real work rather than a timer
       const p = u - .05 * Math.sin(2 * Math.PI * u);
-      setProgress(p); setStrip(p);
+      setProgress(p);
+      if (!manual) setStrip(p);
       if (u < 1) loadRaf = requestAnimationFrame(tick);
       else goto('done');
     };
     loadRaf = requestAnimationFrame(tick);
   };
 
-  // Manual winding: the film follows the finger 1:1, keeps coasting after a flick, never goes back in
+  // Manual winding: the film moves less than the finger (it has weight), coasts a little after a flick,
+  // and never goes back in. It only moves the film — the import clock above is unaffected.
+  const DRAG_RATIO = .55;
   let manual = true, pulled = 0, wind = null;
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
   const hubs = [...recap.querySelectorAll('.hub')];
   const setPulled = p => {
     pulled = Math.min(1, Math.max(pulled, p));
-    setProgress(pulled); setStrip(pulled);
+    setStrip(pulled);
     const deg = pulled * travel() * 1.3; // spool turns as film comes off it
     hubs.forEach(h => h.style.transform = `rotate(${deg}deg)`);
-    if (pulled >= 1 && step === 'loading' && !timers.done) timers.done = timers.push(setTimeout(() => goto('done'), 250));
   };
   const coast = v => {
     let last = performance.now();
     const tick = now => {
       const dt = now - last; last = now;
       setPulled(pulled + v * dt / travel());
-      v *= Math.pow(.9, dt / 16);
-      if (Math.abs(v) > .01 && pulled < 1) loadRaf = requestAnimationFrame(tick);
+      v *= Math.pow(.84, dt / 16);
+      if (Math.abs(v) > .01 && pulled < 1) filmRaf = requestAnimationFrame(tick);
     };
-    loadRaf = requestAnimationFrame(tick);
+    filmRaf = requestAnimationFrame(tick);
+  };
+  // When the import finishes, whatever film is still inside rolls out on its own
+  const finishFilm = () => {
+    const from = pulled, t0 = performance.now(), D = 900;
+    const tick = now => {
+      const k = Math.min(1, (now - t0) / D);
+      setPulled(from + (1 - from) * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) filmRaf = requestAnimationFrame(tick);
+    };
+    filmRaf = requestAnimationFrame(tick);
   };
   const startManual = () => {
-    pulled = 0; setProgress(0); setStrip(0); hubs.forEach(h => h.style.transform = '');
+    pulled = 0; setStrip(0); hubs.forEach(h => h.style.transform = '');
     recap.classList.remove('touched');
     // Once the patrone has settled, let the film's leading edge peek out so there is something to grab
     timers.push(setTimeout(() => { if (!recap.classList.contains('touched')) coast(.12); }, reduceMotion.matches ? 200 : 1400));
@@ -553,7 +566,7 @@ fieldset[disabled] .range { opacity: .45; }
   const scale = () => phone.getBoundingClientRect().width / 402;
   const windEl = $('wind');
   windEl.addEventListener('pointerdown', e => {
-    cancelAnimationFrame(loadRaf);
+    cancelAnimationFrame(filmRaf);
     windEl.setPointerCapture(e.pointerId); windEl.classList.add('grabbing');
     recap.classList.add('touched');
     wind = { y: e.clientY, t: performance.now(), v: 0 };
@@ -562,23 +575,23 @@ fieldset[disabled] .range { opacity: .45; }
     if (!wind) return;
     const now = performance.now(), dy = (e.clientY - wind.y) / scale(), dt = Math.max(1, now - wind.t);
     wind.y = e.clientY; wind.t = now;
-    if (dy > 0) setPulled(pulled + dy / travel());
-    wind.v = .6 * wind.v + .4 * Math.max(0, dy / dt);
+    if (dy > 0) setPulled(pulled + dy * DRAG_RATIO / travel());
+    wind.v = .6 * wind.v + .4 * Math.max(0, dy * DRAG_RATIO / dt);
   });
   const release = () => {
     if (!wind) return;
     windEl.classList.remove('grabbing');
     // A pause before letting go means no flick
-    if (performance.now() - wind.t < 80) coast(Math.min(wind.v, 1.2));
+    if (performance.now() - wind.t < 80) coast(Math.min(wind.v, .7));
     wind = null;
   };
   windEl.addEventListener('pointerup', release);
   windEl.addEventListener('pointercancel', release);
   windEl.addEventListener('wheel', e => {
     e.preventDefault();
-    cancelAnimationFrame(loadRaf);
+    cancelAnimationFrame(filmRaf);
     recap.classList.add('touched');
-    if (e.deltaY > 0) setPulled(pulled + e.deltaY * (e.deltaMode ? 30 : .7) / travel());
+    if (e.deltaY > 0) setPulled(pulled + e.deltaY * (e.deltaMode ? 30 : 1) * DRAG_RATIO / travel());
   }, { passive: false });
 
   const goto = next => {
@@ -615,9 +628,11 @@ fieldset[disabled] .range { opacity: .45; }
       // Hold on the patrone with the album details until the viewer starts the import
       [$('canisterIn'), $('recapTitle'), $('recapInfo'), $('startImport')].forEach(replay);
     } else if (next === 'loading') {
-      manual ? startManual() : startLoading();
+      if (manual) startManual();
+      startLoading();
     } else if (next === 'done') {
-      setProgress(1); setStrip(1);
+      setProgress(1);
+      if (manual && wasOpen && pulled < 1) finishFilm(); else setPulled(1);
     }
   };
 
@@ -630,7 +645,6 @@ fieldset[disabled] .range { opacity: .45; }
     const b = e.target.closest('button'); if (!b) return;
     manual = b.dataset.mode === 'manual';
     [...$('windMode').children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    $('autoOpts').disabled = manual;
     recap.classList.toggle('manual', manual);
     if (step === 'loading') goto('intro');
   });
