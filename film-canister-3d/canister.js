@@ -595,11 +595,29 @@ function heroRotation() {
 export const HERO_POSE = { rotation: heroRotation() };
 
 // Turntable: hero pose turned by +angle about world +Y (positive = counter-clockwise when viewed from above).
-export const TURNTABLE_DURATION = 4;
+// Timing: a beat of stillness, a small wind-up the other way (the "tame"), then a fast 360° whip that
+// overshoots a touch and settles. Ends exactly one turn later, so the loop is seamless.
+export const TURNTABLE_DURATION = 2;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
+const TT = { hold: 0.35, windEnd: 0.75, spinEnd: 1.4, wind: 0.26 /* rad, about 15° */ };
+export function turntableMotion(t) {
+  t = ((t % TURNTABLE_DURATION) + TURNTABLE_DURATION) % TURNTABLE_DURATION;
+  const full = Math.PI * 2;
+  if (t < TT.hold) return { angle: 0, y: 0 };
+  if (t < TT.windEnd) {
+    const u = (t - TT.hold) / (TT.windEnd - TT.hold);
+    const e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;   // ease-in-out into the wind-up
+    return { angle: -TT.wind * e, y: -0.05 * e };                  // turns back and crouches a little
+  }
+  if (t < TT.spinEnd) {
+    const u = (t - TT.windEnd) / (TT.spinEnd - TT.windEnd), k = 0.7;
+    const e = 1 + (k + 1) * (u - 1) ** 3 + k * (u - 1) ** 2;      // ease-out-back: launches fast, small overshoot
+    return { angle: -TT.wind + (full + TT.wind) * e, y: -0.05 + 0.13 * Math.sin(Math.min(u * 1.6, 1) * Math.PI) + 0.05 * Math.min(u * 3, 1) };
+  }
+  return { angle: full, y: 0 };
+}
 export function turntableQuaternion(t, out = new THREE.Quaternion()) {
-  const angle = (t / TURNTABLE_DURATION) * Math.PI * 2;
-  return out.setFromEuler(HERO_POSE.rotation).premultiply(new THREE.Quaternion().setFromAxisAngle(Y_AXIS, angle));
+  return out.setFromEuler(HERO_POSE.rotation).premultiply(new THREE.Quaternion().setFromAxisAngle(Y_AXIS, turntableMotion(t).angle));
 }
 
 // ---------- baked clips (exported into the GLB) ----------
@@ -636,16 +654,18 @@ export function createClips(model) {
     ]));
   }
 
-  // Turntable: the whole posed cartridge turns 360° counter-clockwise (seen from above) around the world Y axis
+  // Turntable: the whole posed cartridge winds up, then whips 360° counter-clockwise (seen from above) around world Y
   {
-    const n = 17, dur = TURNTABLE_DURATION, times = [], rot = [];
+    const n = 101, dur = TURNTABLE_DURATION, times = [], rot = [], pos = [];
     for (let i = 0; i < n; i++) {
-      const t = (i / (n - 1)) * dur;
-      times.push(t);
+      const t = i === n - 1 ? dur - 1e-6 : (i / (n - 1)) * dur; // last key = full turn, same pose as the first
+      times.push((i / (n - 1)) * dur);
       rot.push(turntableQuaternion(t));
+      pos.push(0, turntableMotion(t).y, 0);
     }
     clips.push(new THREE.AnimationClip('Turntable', dur, [
       new THREE.QuaternionKeyframeTrack('FilmCanister.quaternion', times, flat(rot)),
+      new THREE.VectorKeyframeTrack('FilmCanister.position', times, pos),
     ]));
   }
 

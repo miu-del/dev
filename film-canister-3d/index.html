@@ -98,7 +98,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
       <div class="btns" id="anims">
         <button data-anim="idle" aria-pressed="true">ふわふわ<small>Idle · loop</small></button>
         <button data-anim="spin">くるっと回転<small>Spin · loop</small></button>
-        <button data-anim="turntable">左回りに一周<small>Turntable · 4s loop</small></button>
+        <button data-anim="turntable">左回りに一周<small>Turntable · 2s loop</small></button>
         <button data-anim="enter">転がって登場<small>Roll in · 1.4s</small></button>
         <button data-anim="tap">タップ反応<small>Tap · 0.6s</small></button>
         <button data-anim="open">フタが開く<small>Open · 1.6s</small></button>
@@ -155,7 +155,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
 import {
-  createFilmCanister, createClips, bakeFilmMorphs, pullCurve, HERO_POSE, DIM, FILM, PULL_DURATION, FEED_SECONDS_PER_FRAME, TURNTABLE_DURATION,
+  createFilmCanister, createClips, bakeFilmMorphs, pullCurve, HERO_POSE, DIM, FILM, PULL_DURATION, FEED_SECONDS_PER_FRAME, TURNTABLE_DURATION, turntableMotion,
   DEFAULT_LABEL, DEFAULT_FRAMES,
 } from './canister.js';
 
@@ -273,7 +273,7 @@ const presets = {
   },
   turntable: {
     loop: true, dur: TURNTABLE_DURATION,
-    at: t => pose({ turn: (t / TURNTABLE_DURATION) * Math.PI * 2 }),
+    at: t => { const m = turntableMotion(t); pose({ turn: m.angle, y: m.y }); },
   },
   enter: {
     loop: false, dur: 1.4,

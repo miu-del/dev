@@ -2,9 +2,9 @@
 
 「Moments」パトローネ（35mmフィルム）の3Dモデル。three.js で手続き生成しています。
 
-| 標準ポーズ | 引き出し（Pull） | 引き出し続ける（Feed・ループ） |
-| --- | --- | --- |
-| ![preview](preview.png) | ![pull](preview-pull.png) | ![feed](preview-feed.gif) |
+| 標準ポーズ | 引き出し（Pull） | 引き出し続ける（Feed・ループ） | 左回りに一周（Turntable） |
+| --- | --- | --- | --- |
+| ![preview](preview.png) | ![pull](preview-pull.png) | ![feed](preview-feed.gif) | ![turntable](preview-turntable.gif) |
 
 ## ファイル
 
@@ -61,7 +61,7 @@ await canister.userData.setFrames([img1, img2]);  // あとから差し替え
 | --- | --- |
 | Idle | ふわふわ浮く（4秒ループ） |
 | Spin | 缶が自分の軸まわりに1回転（3秒ループ） |
-| Turntable | 傾けた姿勢のまま、Y軸（真上を向いた軸）を中心に左回りで360°回転（4秒ループ。Idle とは同じノードを動かすので同時再生不可） |
+| Turntable | 傾けた姿勢のまま、Y軸（真上を向いた軸）を中心に左回りで360°回転。少し止まる → 逆方向へ小さくタメる → くるっと素早く一回転して少し行き過ぎて戻る（2秒ループ。Idle とは同じノードを動かすので同時再生不可） |
 | Open | 上フタが外れて戻る（1.6秒） |
 | Pull | リーダーからフィルムを引き出す（2.2秒。逆再生で巻き戻し） |
 | Feed | フィルムを引き出し続ける（2.7秒ループ。Idle と同時再生できます） |
