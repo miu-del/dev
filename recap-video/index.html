@@ -965,6 +965,8 @@ const frame = now => {
     canister.userData.setFilmFeed(null);
     canister.userData.setFilmOut(Math.min(out, FILM.length) * reel);
   }
+  // Patrone screen: no cast shadow behind the album title and list; it fades in as the cartridge swings level
+  backdrop.material.opacity = 0.35 * l;
   renderer.render(scene, camera);
   if (!recap.classList.contains('three')) recap.classList.add('three');
 };
