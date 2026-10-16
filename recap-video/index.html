@@ -233,8 +233,12 @@ button { font: inherit; color: inherit; }
 .viewer .more { right: 14px; top: 58px; }
 .video-card { position: absolute; left: 18px; top: 112px; width: 366px; height: 651px; border-radius: 12px; overflow: hidden; background: #111; cursor: pointer; }
 .viewer.open .video-card { animation: cardIn 1s .05s var(--ease-out-expo) both; }
-/* Arriving from the patrone: the flying thumbnail stands in for the video frame until it lands */
+/* Arriving from the patrone: the flying thumbnail stands in for the video frame until it lands;
+   the header and the actions wait until it has settled */
 .viewer.from-morph .video-card { animation: none; opacity: 0; }
+.viewer.morphed .video-card { animation: none; }
+.viewer .close, .viewer .more, .viewer .actions { transition: opacity .45s ease; }
+.viewer.from-morph .close, .viewer.from-morph .more, .viewer.from-morph .actions { opacity: 0; pointer-events: none; }
 .morph-card { position: absolute; left: 18px; top: 112px; width: 366px; height: 651px; border-radius: 12px; overflow: hidden; z-index: 26; pointer-events: none;
   backface-visibility: hidden; box-shadow: 0 24px 60px -10px rgba(0,0,0,.6); background: #111; }
 .morph-card[hidden] { display: none; }
@@ -625,7 +629,7 @@ button { font: inherit; color: inherit; }
     document.querySelectorAll('#steps button').forEach(b => b.dataset.go === next ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
 
     if (next === 'album' || next === 'viewer') R3.step = next;
-    if (next !== 'viewer') { $('morph').hidden = true; viewer.classList.remove('from-morph'); }
+    if (next !== 'viewer') { $('morph').hidden = true; viewer.classList.remove('from-morph', 'morphed'); }
     if (next === 'album') {
       recap.classList.remove('open'); viewer.classList.remove('open');
       return;
@@ -674,11 +678,11 @@ button { font: inherit; color: inherit; }
         filmRaf = requestAnimationFrame(feed);
       }
     } else if (next === 'exit') {
-      // 動画を見る: the patrone turns (model Turntable); about half way round it becomes the video thumbnail,
+      // 動画を見る: the patrone turns (model Turntable); end-on, it becomes the video thumbnail,
       // which finishes the turn and flies into the video frame of the next screen
       R3.exitAt = performance.now(); R3.swapped = false; morphStarted = false;
       // the 3D script fires 'canister-swap'; without it (2D fallback) hand over on a timer
-      timers.push(setTimeout(startMorph, reduceMotion.matches ? 0 : recap.classList.contains('three') ? 1500 : 350));
+      timers.push(setTimeout(startMorph, reduceMotion.matches ? 0 : recap.classList.contains('three') ? 1800 : 350));
     }
   };
 
@@ -711,6 +715,8 @@ button { font: inherit; color: inherit; }
     timers.push(setTimeout(() => { viewer.classList.add('from-morph'); goto('viewer'); }, reduceMotion.matches ? 0 : 450));
     anim.finished.then(() => {
       if (step !== 'viewer') return;
+      // landed: swap in the real frame (no entrance replay), then bring in the header and the actions
+      viewer.classList.add('morphed');
       viewer.classList.remove('from-morph');
       card.hidden = true; anim.cancel();
       player.start();
@@ -878,12 +884,16 @@ const frame = now => {
   const l = S.step === 'intro' ? 0 : rm ? 1 : expo(clamp01((now - S.levelAt) / 1600));
   const float = rm ? 0 : Math.sin(now / 640) * 0.04 * (1 - l);
   // Exit (動画を見る): the model's Turntable — a still beat (the film reels in), a small wind-up, then a fast
-  // counter-clockwise whip. About half way round, the cartridge hands over to the video thumbnail (DOM).
+  // counter-clockwise whip. End-on (a quarter turn), the cartridge hands over to the video thumbnail (DOM).
   const exiting = S.step === 'exit' || S.step === 'viewer';
-  const tE = exiting ? (rm ? 9 : (now - S.exitAt) / 1000) : 0;
+  // (the frame time can be a hair earlier than the click; never let it go negative, which would wrap to a full turn)
+  const tE = exiting ? (rm ? 9 : Math.max(0, (now - S.exitAt) / 1000)) : 0;
   const x = exiting ? Math.max(1e-6, clamp01(tE / 0.95)) : 0;
-  const turn = exiting ? turntableMotion(Math.min(tE, 1.999)) : { angle: 0, y: 0 };
-  if (exiting && !S.swapped && (turn.angle >= Math.PI * 0.85 || rm)) {
+  const TURN_SPEED = 0.8; // the model's Turntable, played at 0.8×
+  const turn = exiting ? turntableMotion(Math.min(tE * TURN_SPEED, 1.999)) : { angle: 0, y: 0 };
+  // hand over the instant the cartridge is end-on (a quarter turn, its narrowest); the thumbnail then turns in
+  // from edge-on to finish the half turn, so the two are never on screen together
+  if (exiting && !S.swapped && (turn.angle >= Math.PI / 2 || rm)) {
     S.swapped = true;
     window.dispatchEvent(new Event('canister-swap'));
   }
@@ -911,8 +921,8 @@ const frame = now => {
   // the model turns its Spin node; here only the label turns, so the film slot stays put for the import
   label.rotation.y = Math.PI + tap.spin;
   spin.rotation.y = 0;
-  // from about half a turn the cartridge fades out while the thumbnail turns in
-  canvas.style.opacity = exiting ? String(1 - clamp01((turn.angle - Math.PI * 0.85) / (Math.PI * 0.5))) : '';
+  // gone the moment the thumbnail takes over
+  canvas.style.opacity = exiting && S.swapped ? '0' : '';
   const reel = (1 - clamp01(tE / 0.3)) ** 3;
   if (feeding && !x) {
     canister.userData.setFilmOut(0);
