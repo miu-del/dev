@@ -181,6 +181,8 @@ button { font: inherit; color: inherit; }
 /* Exit (after 動画を見る): heading and glow fade while the patrone rolls away */
 .recap[data-step="exit"] .recap-title { top: 110px; color: transparent; transition: color .4s ease; } /* opacity is held by its entrance animation */
 .recap[data-step="exit"] .glow3d { top: 135px; height: 400px; width: 400px; margin-left: -200px; opacity: 0; }
+/* At the hand-over the cartridge, its film and their shadows must vanish in the same frame — no fade-out tail */
+.recap[data-step="exit"] .stage3d { transition: none; }
 .recap[data-step="exit"] .canister { top: 190px; transform: none; opacity: 0; transition: opacity .5s ease; }
 .recap[data-step="exit"] .strip-window { opacity: 0; transition: opacity .5s ease; }
 .strip-window {
