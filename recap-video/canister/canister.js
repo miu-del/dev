@@ -597,9 +597,9 @@ export const HERO_POSE = { rotation: heroRotation() };
 // Turntable: hero pose turned by +angle about world +Y (positive = counter-clockwise when viewed from above).
 // Timing: a beat of stillness, a small wind-up the other way (the "tame"), then a fast 360° whip that
 // overshoots a touch and settles. Ends exactly one turn later, so the loop is seamless.
-export const TURNTABLE_DURATION = 2;
+export const TURNTABLE_DURATION = 2.6;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
-const TT = { hold: 0.35, windEnd: 0.75, spinEnd: 1.4, wind: 0.26 /* rad, about 15° */ };
+const TT = { hold: 0.35, windEnd: 0.8, spinEnd: 1.95, wind: 0.26 /* rad, about 15° */ };
 export function turntableMotion(t) {
   t = ((t % TURNTABLE_DURATION) + TURNTABLE_DURATION) % TURNTABLE_DURATION;
   const full = Math.PI * 2;
