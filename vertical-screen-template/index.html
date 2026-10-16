@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vertical Screen 9:16</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Vertical 9:16 stage (1080×1920 logical px) for UI animation prototypes and screen recordings.
+   Build the scene in real pixels inside .stage; it is scaled to fit the viewport as a whole.
+   Layout: stage on the left, a narrow control rail on the right; stacks below on narrow screens.
+   ?rec in the URL (or the H key) hides everything except the stage, for recording. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b12;
+  --rail: #14141d;
+  --rail-line: #26263a;
+  --ink: #ececf3;
+  --ink-dim: #9a9ab0;
+  --accent: #6d6dff;
+  --guide: rgba(255, 64, 160, .75);
+  --guide-fill: rgba(255, 64, 160, .10);
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Zen Kaku Gothic New", sans-serif;
+  --font-jp: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  /* stage size + motion tokens (shared with JS) */
+  --stage-w: 1080;
+  --stage-h: 1920;
+  --stage-bg: #101018;
+  --ease-out-expo: cubic-bezier(.16, 1, .3, 1);
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-jp);
+  font-size: 14px;
+}
+.layout {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding-inline: 16px;
+  padding-block: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+}
+
+/* ---------- Stage ---------- */
+.stage-slot { width: calc(var(--stage-w) * 1px * var(--s, 1)); height: calc(var(--stage-h) * 1px * var(--s, 1)); flex: none; }
+.stage {
+  width: calc(var(--stage-w) * 1px); height: calc(var(--stage-h) * 1px);
+  transform: scale(var(--s, 1)); transform-origin: top left;
+  background: var(--stage-bg);
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+  isolation: isolate;
+  box-shadow: 0 0 0 1px #2a2a38, 0 40px 80px -20px rgba(0,0,0,.8);
+}
+
+/* Scene: replace everything inside #scene with your own UI. Coordinates are 1080×1920 px. */
+.scene { position: absolute; inset: 0; }
+.demo-title {
+  position: absolute; left: 0; right: 0; top: 360px; margin: 0;
+  text-align: center; font: 400 88px/1.05 var(--font-display); letter-spacing: -.01em;
+  font-variation-settings: "opsz" 144;
+}
+.demo-sub { position: absolute; left: 120px; right: 120px; top: 580px; margin: 0; text-align: center; font: 400 40px/1.4 var(--font-ui); color: #c8c8cf; }
+.demo-card {
+  position: absolute; left: 240px; top: 760px; width: 600px; height: 600px; border-radius: 48px;
+  background: linear-gradient(160deg, #3434f2, #121566 70%);
+  box-shadow: 0 40px 120px -30px rgba(52, 52, 242, .7);
+  will-change: transform, opacity;
+}
+.demo-button {
+  position: absolute; left: 60px; right: 60px; top: 1560px; height: 150px; border-radius: 40px;
+  border: 2px solid #5b5bff; background: linear-gradient(180deg, #3434f2, #2121c4); color: #fff;
+  font: 600 44px/1 var(--font-ui); display: grid; place-items: center;
+}
+
+/* Guides (overlay, not part of the recording when toggled off) */
+.guides { position: absolute; inset: 0; pointer-events: none; z-index: 50; display: none; }
+.stage[data-guides="on"] .guides { display: block; }
+.guide-center::before, .guide-center::after { content: ""; position: absolute; background: var(--guide); }
+.guide-center::before { left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; }
+.guide-center::after { top: 50%; left: 0; right: 0; height: 2px; margin-top: -1px; }
+.guide-thirds {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(to right, transparent calc(33.333% - 1px), rgba(255,255,255,.18) calc(33.333% - 1px) calc(33.333% + 1px), transparent calc(33.333% + 1px) calc(66.666% - 1px), rgba(255,255,255,.18) calc(66.666% - 1px) calc(66.666% + 1px), transparent calc(66.666% + 1px)),
+    linear-gradient(to bottom, transparent calc(33.333% - 1px), rgba(255,255,255,.18) calc(33.333% - 1px) calc(33.333% + 1px), transparent calc(33.333% + 1px) calc(66.666% - 1px), rgba(255,255,255,.18) calc(66.666% - 1px) calc(66.666% + 1px), transparent calc(66.666% + 1px));
+}
+/* Short-form video safe area (Reels / TikTok / Shorts overlay UI, approximate) */
+.guide-unsafe { position: absolute; background: var(--guide-fill); }
+.guide-unsafe.top    { left: 0; right: 0; top: 0; height: 220px; }
+.guide-unsafe.bottom { left: 0; right: 0; bottom: 0; height: 420px; }
+.guide-unsafe.left   { left: 0; top: 220px; bottom: 420px; width: 60px; }
+.guide-unsafe.right  { right: 0; top: 220px; bottom: 420px; width: 180px; }
+.guide-safe { position: absolute; left: 60px; right: 180px; top: 220px; bottom: 420px; border: 2px dashed var(--guide); }
+.guide-label { position: absolute; left: 70px; top: 230px; font: 500 24px/1 var(--font-mono); color: var(--guide); }
+
+/* ---------- Control rail ---------- */
+.rail {
+  width: 340px; max-width: 100%; box-sizing: border-box;
+  background: var(--rail); border: 1px solid var(--rail-line); border-radius: 14px;
+  padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 22px;
+}
+.rail h1 { margin: 0; font: 500 22px/1.2 var(--font-display); letter-spacing: -.01em; text-wrap: balance; }
+.rail .lead { margin: 6px 0 0; color: var(--ink-dim); line-height: 1.6; }
+.group { display: flex; flex-direction: column; gap: 8px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.group legend, .group .label { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ink-dim); }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn {
+  appearance: none; border: 1px solid var(--accent); background: transparent; color: var(--ink);
+  border-radius: 9px; padding: 10px 14px; font: 500 14px/1 var(--font-jp); cursor: pointer;
+}
+.btn:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink); }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.check input.color { width: 36px; height: 28px; padding: 0; border: 1px solid var(--rail-line); border-radius: 6px; background: none; cursor: pointer; }
+.spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
+.spec dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
+.spec dt { color: var(--ink-dim); }
+.spec dd { margin: 0; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
+kbd { font-family: var(--font-mono); font-size: 11px; padding: 1px 5px; border: 1px solid var(--rail-line); border-radius: 4px; }
+
+/* Recording mode: stage only, centred, as large as the viewport allows */
+body.rec { background: #000; }
+body.rec .rail { display: none; }
+body.rec .layout { padding: 0; min-height: 100vh; }
+body.rec .stage { box-shadow: none; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="stage-slot" id="stageSlot">
+    <div class="stage" id="stage" data-guides="off">
+
+      <!-- ===== Scene: replace this block with your UI ===== -->
+      <div class="scene" id="scene">
+        <h2 class="demo-title" data-anim="fade-up">Your UI<br>animation here</h2>
+        <p class="demo-sub" data-anim="fade-up">1080 × 1920 px のキャンバスにそのまま組んでください。</p>
+        <div class="demo-card" data-anim="float-in"></div>
+        <div class="demo-button" data-anim="fade-up">Next</div>
+      </div>
+      <!-- ===== /Scene ===== -->
+
+      <div class="guides" aria-hidden="true">
+        <div class="guide-thirds"></div>
+        <div class="guide-unsafe top"></div><div class="guide-unsafe bottom"></div>
+        <div class="guide-unsafe left"></div><div class="guide-unsafe right"></div>
+        <div class="guide-safe"></div>
+        <span class="guide-label">SAFE AREA</span>
+        <div class="guide-center"></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="rail">
+    <div>
+      <h1>Vertical Screen 9:16</h1>
+      <p class="lead">UIアニメーション用の縦型 9:16 キャンバス（1080 × 1920）。<code>#scene</code> の中身を差し替え、<code>play()</code> にモーションを書いて使います。</p>
+    </div>
+
+    <fieldset class="group">
+      <legend>プレビュー</legend>
+      <div class="row">
+        <button class="btn" type="button" id="replay">再生</button>
+        <button class="btn" type="button" id="recBtn">録画モード</button>
+      </div>
+      <label class="check"><input type="checkbox" id="guides"> ガイド（中央線・三分割・セーフエリア）</label>
+      <label class="check"><input type="color" class="color" id="bg" value="#101018"> 背景色</label>
+    </fieldset>
+
+    <div class="spec">
+      <div class="group"><span class="label">キャンバス</span></div>
+      <dl>
+        <dt>サイズ</dt><dd>1080 × 1920 px (9:16)</dd>
+        <dt>表示倍率</dt><dd id="scaleOut">—</dd>
+        <dt>セーフエリア</dt><dd>上220 / 下420 / 左60 / 右180</dd>
+      </dl>
+    </div>
+
+    <div class="spec">
+      <div class="group"><span class="label">ショートカット</span></div>
+      <dl>
+        <dt><kbd>Space</kbd> / <kbd>R</kbd></dt><dd>再生</dd>
+        <dt><kbd>G</kbd></dt><dd>ガイド切替</dd>
+        <dt><kbd>H</kbd></dt><dd>録画モード切替（URL に ?rec でも可）</dd>
+      </dl>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const slot = document.getElementById('stageSlot');
+  const scene = document.getElementById('scene');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const W = 1080, H = 1920;
+  const EXPO = 'cubic-bezier(.16, 1, .3, 1)';
+
+  // Fit the 1080×1920 stage into the viewport
+  const fit = () => {
+    const rec = document.body.classList.contains('rec');
+    const narrow = !rec && innerWidth < 820;
+    const pad = rec ? 0 : 48;
+    const availH = narrow ? Infinity : innerHeight - pad;
+    const availW = rec ? innerWidth : innerWidth - 32;
+    const s = Math.min(1, availH / H, availW / W);
+    slot.style.setProperty('--s', s);
+    stage.style.setProperty('--s', s);
+    document.getElementById('scaleOut').textContent = `${Math.round(s * 1000) / 10}%`;
+  };
+  addEventListener('resize', fit);
+
+  // ---- Motion: edit play() for your scene ----
+  let anims = [];
+  const run = (el, frames, opts) => anims.push(el.animate(frames, { fill: 'backwards', easing: EXPO, ...opts }));
+  const play = () => {
+    anims.forEach(a => a.cancel()); anims = [];
+    if (reduceMotion.matches) return;
+    scene.querySelectorAll('[data-anim]').forEach((el, i) => {
+      const delay = 120 + i * 90;
+      if (el.dataset.anim === 'float-in') {
+        run(el, [
+          { opacity: 0, transform: 'translateY(160px) scale(.94)', filter: 'blur(12px)' },
+          { opacity: 1, offset: .45, filter: 'blur(0)' },
+          { opacity: 1, transform: 'none', filter: 'blur(0)' }
+        ], { duration: 1000, delay });
+      } else {
+        run(el, [
+          { opacity: 0, transform: 'translateY(40px)' },
+          { opacity: 1, transform: 'none' }
+        ], { duration: 800, delay });
+      }
+    });
+  };
+
+  // ---- Controls ----
+  const guides = document.getElementById('guides');
+  const setGuides = on => { guides.checked = on; stage.dataset.guides = on ? 'on' : 'off'; };
+  guides.addEventListener('change', () => setGuides(guides.checked));
+  const setRec = on => { document.body.classList.toggle('rec', on); fit(); };
+  document.getElementById('recBtn').addEventListener('click', () => setRec(true));
+  document.getElementById('replay').addEventListener('click', play);
+  document.getElementById('bg').addEventListener('input', e => stage.style.setProperty('--stage-bg', e.target.value));
+
+  addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select')) return;
+    const k = e.key.toLowerCase();
+    if (k === ' ' || k === 'r') { e.preventDefault(); play(); }
+    else if (k === 'g') setGuides(!guides.checked);
+    else if (k === 'h') setRec(!document.body.classList.contains('rec'));
+  });
+
+  setRec(new URLSearchParams(location.search).has('rec'));
+  if (document.readyState === 'complete') play(); else addEventListener('load', play);
+})();
+</script>
+</body>
+</html>
