@@ -929,8 +929,9 @@ const frame = now => {
   const tap = tapPose(S, now);
   if (tap.rz && !rm) canister.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), tap.rz));
   canister.scale.setScalar((0.72 + 0.28 * e) * (rm ? 1 : tap.sc));
-  // the model turns its Spin node; here only the label turns, so the film slot stays put for the import
-  label.rotation.y = Math.PI + tap.spin;
+  // The model's Tap turns the can. With film out of the slot the can can't turn on its own (the film would have to
+  // turn with it), so then the tap is just the squash and wobble; with no film out, only the label turns.
+  label.rotation.y = Math.PI + (U > 0.001 ? 0 : tap.spin);
   spin.rotation.y = 0;
   // gone the moment the thumbnail takes over
   canvas.style.opacity = exiting && S.swapped ? '0' : '';
