@@ -434,9 +434,10 @@ button { font: inherit; color: inherit; }
 
     <fieldset class="group">
       <legend>フィルムの巻き取り</legend>
-      <div class="seg" id="windMode">
-        <button type="button" data-mode="manual" aria-pressed="true">手動で巻く</button>
-        <button type="button" data-mode="auto" aria-pressed="false">自動</button>
+      <div class="seg" id="windMode" style="grid-template-columns: repeat(3, 1fr)">
+        <button type="button" data-mode="both" aria-pressed="true">自動＋手動</button>
+        <button type="button" data-mode="auto" aria-pressed="false">自動のみ</button>
+        <button type="button" data-mode="manual" aria-pressed="false">手動のみ</button>
       </div>
     </fieldset>
 
@@ -523,8 +524,8 @@ button { font: inherit; color: inherit; }
   // album → intro (patrone appears) → loading (film comes out) → done (動画を見る) → viewer
   let step = 'album';
   // loadRaf drives the import clock; filmRaf moves the film on its own (coasting, peeking, finishing)
-  let timers = [], loadRaf = 0, filmRaf = 0;
-  const clearFlow = () => { timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(loadRaf); cancelAnimationFrame(filmRaf); };
+  let timers = [], loadRaf = 0, filmRaf = 0, feedRaf = 0;
+  const clearFlow = () => { timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(loadRaf); cancelAnimationFrame(filmRaf); cancelAnimationFrame(feedRaf); };
   const replayClass = (el, c) => { el.classList.remove(c); void el.offsetWidth; el.classList.add(c); };
   const replay = el => { el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter'); };
   const setProgress = p => {
@@ -538,15 +539,17 @@ button { font: inherit; color: inherit; }
   // On the patrone screen the film already shows about 4/5 of the first photo; the import picks up from there
   const INTRO_FILM_PX = 2.35 * 134;
   const startLoading = () => {
-    const base = pulled;
     const T = $('loadSecs').value * 1000;
     const t0 = performance.now();
+    let lastP = 0;
     const tick = now => {
       const u = (now - t0) / T;
       // Mostly linear with a gentle surge and lull, so it reads as real work rather than a timer
       const p = u < 1 ? u - .05 * Math.sin(2 * Math.PI * u) : 1;
       setProgress(p);
-      if (!manual) setPulled(Math.max(base + p * AUTO_FILM, popAt(now - t0) * leaderPopPx() / travel()));
+      // Auto feed adds to wherever the film is, so the viewer's own winding stays; it pauses while they hold the film
+      if (autoFeedOn() && !wind) setPulled(Math.max(pulled + (p - lastP) * AUTO_FILM, popAt(now - t0) * leaderPopPx() / travel()));
+      lastP = p;
       if (u < 1) loadRaf = requestAnimationFrame(tick);
       // straight into the patrone → thumbnail → video transition, or wait on 動画を見る (rail toggle)
       else goto(autoAdvance ? 'exit' : 'done');
@@ -559,12 +562,14 @@ button { font: inherit; color: inherit; }
   // Leader pop from the model's pullCurve: ~1.35 cartridge widths (×134px) in 0.7s, once the patrone has swung level
   // Manual waits for the patrone to swing level (something to grab); auto starts almost at once
   // Pop length = the model's pullCurve lead (FILM.leader × 0.95), handed over by the 3D script; 2D fallback uses the same value
-  const leaderPopPx = () => R3.leaderPopPx || 0.836 * 134, popDelay = () => (manual ? 900 : 150);
+  const leaderPopPx = () => R3.leaderPopPx || 0.836 * 134, popDelay = () => (autoFeedOn() ? 150 : 900);
   // Manual: draw out further, so about half of the first photo is already showing below the cartridge when winding starts
   const manualPopPx = () => R3.manualPopPx || 1.9 * 134;
   const popAt = ms => { const t = (ms - popDelay()) / 700; return t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) ** 3; };
   const DRAG_RATIO = .539; // 1.4 × the previous .385
-  let manual = true, pulled = 0, wind = null;
+  // Winding mode: 'both' = auto feed + hand winding (default), 'auto' = feed only, 'manual' = hand only
+  let mode = 'both', pulled = 0, wind = null;
+  const autoFeedOn = () => mode !== 'manual', handOn = () => mode !== 'auto';
   const travel = () => (stripH = stripH || strip.offsetHeight) * FILM_SPEED;
   const setPulled = p => {
     // No upper limit: past 1 the 3D film loops (its frames repeat), so it can keep running for as long as the import takes
@@ -671,17 +676,17 @@ button { font: inherit; color: inherit; }
       [$('canisterIn'), $('recapInfo'), $('startImport')].forEach(replay);
       $('recapTitle').classList.remove('enter');
     } else if (next === 'loading') {
-      if (manual) startManual();
+      if (!autoFeedOn()) startManual();
       startLoading();
     } else if (next === 'done') {
       setProgress(1);
       if (!wasOpen) setPulled(1);
-      // Auto film keeps running at the same pace after the import is done (looping) until 動画を見る
-      if (!manual) {
+      // Auto film keeps running at the same pace after the import is done (looping) until 動画を見る; paused while held
+      if (autoFeedOn()) {
         const rate = AUTO_FILM / ($('loadSecs').value * 1000);
         let last = performance.now();
-        const feed = now => { setPulled(pulled + rate * (now - last)); last = now; filmRaf = requestAnimationFrame(feed); };
-        filmRaf = requestAnimationFrame(feed);
+        const feed = now => { if (!wind) setPulled(pulled + rate * (now - last)); last = now; feedRaf = requestAnimationFrame(feed); };
+        feedRaf = requestAnimationFrame(feed);
       }
     } else if (next === 'exit') {
       // 動画を見る: the patrone turns (model Turntable); end-on, it becomes the video thumbnail,
@@ -739,9 +744,9 @@ button { font: inherit; color: inherit; }
   });
   $('windMode').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    manual = b.dataset.mode === 'manual';
+    mode = b.dataset.mode;
     [...$('windMode').children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    recap.classList.toggle('manual', manual);
+    recap.classList.toggle('manual', handOn());
     if (step === 'loading') goto('intro');
   });
   $('loadSecs').addEventListener('input', e => { $('loadSecsOut').textContent = e.target.value + 's'; });
