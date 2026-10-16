@@ -41,11 +41,10 @@ body { margin: 0; background: var(--page); color: var(--ink); font-family: var(-
    The canvas is larger than the canister so the float never clips. Its centre sits on the canister's centre. */
 .canister {
   position: absolute; left: calc(var(--cx) * 1px - 100px); top: calc(var(--cy) * 1px - 90px);
-  width: 200px; height: 180px; cursor: pointer;
+  width: 200px; height: 180px; pointer-events: none;
   --cx: 348; --cy: 299;
 }
 .canister canvas { display: block; width: 100%; height: 100%; }
-.canister:focus-visible { outline: 2px solid var(--accent); outline-offset: -20px; border-radius: 40px; }
 
 /* ---------- Control rail ---------- */
 .rail {
@@ -72,14 +71,14 @@ input[type="range"] { flex: 1; accent-color: var(--accent); }
 <div class="layout">
   <div class="phone-slot" id="phoneSlot">
     <div class="phone" id="phone">
-      <div class="canister" id="canister" role="button" tabindex="0" aria-label="Film canister"></div>
+      <div class="canister" id="canister" aria-hidden="true"></div>
     </div>
   </div>
 
   <aside class="rail">
     <div>
       <h1>Floating Film Canister</h1>
-      <p class="lead">アルバム画面ヘッダーのフィルム缶を、Film Canister 3D のモデルに差し替えてふわふわ浮遊させる試作。缶をタップすると小さく弾みます。</p>
+      <p class="lead">アルバム画面ヘッダーのフィルム缶を、Film Canister 3D のモデルに差し替えてふわふわ浮遊させる試作。</p>
     </div>
 
     <div class="group">
@@ -95,7 +94,6 @@ input[type="range"] { flex: 1; accent-color: var(--accent); }
         <dt>左右</dt><dd>±1.5px / 6.0s sine</dd>
         <dt>傾き</dt><dd>±3° / 4.0s・5.2s（位相ずらし）</dd>
         <dt>ラベル回転</dt><dd>±6° / 8.0s（文字がゆっくり流れる）</dd>
-        <dt>タップ</dt><dd>0.6s squash → spring</dd>
         <dt>reduced motion</dt><dd>静止（ヒーローポーズ）</dd>
       </dl>
     </div>
@@ -167,20 +165,10 @@ scene.add(canister);
 const H = HERO_POSE.rotation;
 const TAU = Math.PI * 2;
 const FLOAT = { y: 0.115, x: 0.045, rx: 0.05, ry: 0.06, rz: 0.04, spin: 0.1 };
-let amp = 1, speed = 1, clock = 0, tapAt = -Infinity, last = performance.now();
-
-const spring = (t, k, d) => 1 - Math.exp(-d * t) * Math.cos(k * t);
-// Tap: quick squash, then spring back with a small overshoot and a nudge of the label
-function tap(t) {
-  const u = Math.min(Math.max(t / 0.6, 0), 1);
-  if (u >= 1) return { s: 1, rz: 0, spin: 0 };
-  const s = u < 0.15 ? 1 - 0.08 * (u / 0.15) : 0.92 + 0.08 * spring((u - 0.15) / 0.85 * 1.1, 14, 6);
-  return { s, rz: Math.sin(u * Math.PI) * 0.08 * (1 - u), spin: Math.sin(u * Math.PI) * 0.35 };
-}
+let amp = 1, speed = 1, clock = 0, last = performance.now();
 
 function pose(t) {
   const a = reduceMotion.matches ? 0 : amp;
-  const tp = tap(t - tapAt);
   canister.position.set(
     Math.sin(t / 6 * TAU) * FLOAT.x * a,
     Math.sin(t / 4 * TAU) * FLOAT.y * a,
@@ -189,10 +177,9 @@ function pose(t) {
   canister.rotation.set(
     H.x + Math.sin(t / 4 * TAU) * FLOAT.rx * a,
     H.y + Math.sin(t / 5.2 * TAU + 1) * FLOAT.ry * a,
-    H.z + Math.cos(t / 4 * TAU) * FLOAT.rz * a + tp.rz,
+    H.z + Math.cos(t / 4 * TAU) * FLOAT.rz * a,
   );
-  canister.scale.setScalar(tp.s);
-  spin.rotation.y = Math.sin(t / 8 * TAU) * FLOAT.spin * a + tp.spin;
+  spin.rotation.y = Math.sin(t / 8 * TAU) * FLOAT.spin * a;
 }
 
 function frame(now) {
@@ -206,10 +193,6 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // ---------- controls ----------
-const bump = () => { if (!reduceMotion.matches) tapAt = clock; };
-host.addEventListener('click', bump);
-host.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bump(); } });
-
 const bind = (id, set) => {
   const el = document.getElementById(id), out = document.getElementById(id + 'Out');
   el.addEventListener('input', () => { set(+el.value); out.textContent = `${(+el.value).toFixed(2)}×`; });
