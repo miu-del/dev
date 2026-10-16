@@ -543,6 +543,8 @@ button { font: inherit; color: inherit; }
   // Manual waits for the patrone to swing level (something to grab); auto starts almost at once
   // Pop length = the model's pullCurve lead (FILM.leader × 0.95), handed over by the 3D script; 2D fallback uses the same value
   const leaderPopPx = () => R3.leaderPopPx || 0.836 * 134, popDelay = () => (manual ? 900 : 150);
+  // Manual: draw out further, so about half of the first photo is already showing below the cartridge when winding starts
+  const manualPopPx = () => R3.manualPopPx || 1.9 * 134;
   const popAt = ms => { const t = (ms - popDelay()) / 700; return t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) ** 3; };
   const DRAG_RATIO = .539; // 1.4 × the previous .385
   let manual = true, pulled = 0, wind = null;
@@ -570,7 +572,7 @@ button { font: inherit; color: inherit; }
     const t0 = performance.now();
     const pop = now => {
       if (recap.classList.contains('touched')) return;
-      setPulled(popAt(now - t0) * leaderPopPx() / travel());
+      setPulled(popAt(now - t0) * manualPopPx() / travel());
       if (now - t0 < popDelay() + 700) filmRaf = requestAnimationFrame(pop);
     };
     filmRaf = requestAnimationFrame(pop);
@@ -755,6 +757,8 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 // Pull strip's frames are (same photo, same spot), so the hand-over is invisible and the film can run for as long as needed.
 const L_SWITCH = 5.4;
 window.recapState.leaderPopPx = FILM.leader * 0.95 * 134; // pullCurve's lead, in screen px (PX)
+// Manual start: leader + half of frame 1 out, plus the ~0.26 units of strip hidden behind the cartridge
+window.recapState.manualPopPx = (FILM.leader + (FILM.pitch - FILM.frameW) / 2 + FILM.frameW / 2 + 0.26) * 134;
 const feedAt = U => U - FILM.leader - FEED_REACH; // Feed amount that lines its frames up with Pull at U units out
 
 const W = 402, H = 874, FOV = 22;
