@@ -725,13 +725,14 @@ button { font: inherit; color: inherit; }
     card.hidden = false;
     const P = 'perspective(1100px) ';
     const anim = card.animate(reduceMotion.matches ? [{ opacity: 0 }, { opacity: 1 }] : [
-      { transform: P + 'translate(3px, -102px) scale(.3) rotateY(-90deg)', borderRadius: '34px', easing: 'cubic-bezier(.2, .7, .3, 1)' },
-      { transform: P + 'translate(3px, -102px) scale(.36) rotateY(0deg)', borderRadius: '30px', offset: .32, easing: 'cubic-bezier(.55, 0, .2, 1)' },
-      { transform: P + 'translate(0, 0) scale(1.02) rotateY(0deg)', borderRadius: '12px', offset: .84, easing: 'ease-out' },
+      // no hold: it is already drifting toward the frame while it turns to face the viewer, then flies on without easing in
+      { transform: P + 'translate(3px, -102px) scale(.3) rotateY(-90deg)', borderRadius: '34px', easing: 'cubic-bezier(.3, .5, .4, 1)' },
+      { transform: P + 'translate(2.5px, -84px) scale(.42) rotateY(0deg)', borderRadius: '28px', offset: .22, easing: 'cubic-bezier(.25, .6, .3, 1)' },
+      { transform: P + 'translate(0, 0) scale(1.02) rotateY(0deg)', borderRadius: '12px', offset: .82, easing: 'ease-out' },
       { transform: P + 'translate(0, 0) scale(1) rotateY(0deg)', borderRadius: '12px' },
-    ], { duration: reduceMotion.matches ? 250 : 1050, fill: 'both' });
+    ], { duration: reduceMotion.matches ? 250 : 800, fill: 'both' });
     // the video screen fades in underneath while the thumbnail is still flying; its own frame stays hidden until it lands
-    timers.push(setTimeout(() => { viewer.classList.add('from-morph'); goto('viewer'); }, reduceMotion.matches ? 0 : 450));
+    timers.push(setTimeout(() => { viewer.classList.add('from-morph'); goto('viewer'); }, reduceMotion.matches ? 0 : 300));
     anim.finished.then(() => {
       if (step !== 'viewer') return;
       // landed: swap in the real frame (no entrance replay), then bring in the header and the actions
