@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Floating Film Canister</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Same dark shell as camera-filter-animation: phone mock on the left, control rail on the right. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b12;
+  --rail: #14141d;
+  --rail-line: #26263a;
+  --ink: #ececf3;
+  --ink-dim: #9a9ab0;
+  --accent: #6d6dff;
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-jp: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font-family: var(--font-jp); font-size: 14px; }
+.layout {
+  min-height: 100%; box-sizing: border-box; padding: 24px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 40px;
+}
+
+/* ---------- Phone ---------- */
+.phone-slot { width: calc(402px * var(--s, 1)); height: calc(874px * var(--s, 1)); flex: none; }
+.phone {
+  width: 402px; height: 874px;
+  transform: scale(var(--s, 1)); transform-origin: top left;
+  border-radius: 56px; background: #000 url("assets/album-screen.png") 0 0 / 402px 874px no-repeat;
+  box-shadow: 0 0 0 10px #1b1b22, 0 0 0 11px #33333d, 0 40px 80px -20px rgba(0,0,0,.8);
+  position: relative; overflow: hidden; isolation: isolate;
+}
+/* The album screen is a static capture with the flat canister painted out; only the canister is live.
+   The canvas is larger than the canister so the float never clips. Its centre sits on the canister's centre. */
+.canister {
+  position: absolute; left: calc(var(--cx) * 1px - 100px); top: calc(var(--cy) * 1px - 90px);
+  width: 200px; height: 180px; cursor: pointer;
+  --cx: 348; --cy: 299;
+}
+.canister canvas { display: block; width: 100%; height: 100%; }
+.canister:focus-visible { outline: 2px solid var(--accent); outline-offset: -20px; border-radius: 40px; }
+
+/* ---------- Control rail ---------- */
+.rail {
+  width: 320px; max-width: 100%; box-sizing: border-box;
+  background: var(--rail); border: 1px solid var(--rail-line); border-radius: 14px;
+  padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 22px;
+}
+.rail h1 { margin: 0; font: 500 22px/1.2 var(--font-display); letter-spacing: -.01em; }
+.rail .lead { margin: 6px 0 0; color: var(--ink-dim); line-height: 1.6; }
+.group { display: flex; flex-direction: column; gap: 10px; }
+.group .label { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ink-dim); }
+label.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+label.row output { font: 12px var(--font-mono); color: var(--ink-dim); min-width: 3.5em; text-align: right; }
+input[type="range"] { flex: 1; accent-color: var(--accent); }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.spec { border-top: 1px solid var(--rail-line); padding-top: 16px; }
+.spec dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
+.spec dt { color: var(--ink-dim); }
+.spec dd { margin: 0; font-family: var(--font-mono); font-size: 12px; color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="phone-slot" id="phoneSlot">
+    <div class="phone" id="phone">
+      <div class="canister" id="canister" role="button" tabindex="0" aria-label="Film canister"></div>
+    </div>
+  </div>
+
+  <aside class="rail">
+    <div>
+      <h1>Floating Film Canister</h1>
+      <p class="lead">アルバム画面ヘッダーのフィルム缶を、Film Canister 3D のモデルに差し替えてふわふわ浮遊させる試作。缶をタップすると小さく弾みます。</p>
+    </div>
+
+    <div class="group">
+      <span class="label">浮遊</span>
+      <label class="row">揺れ幅 <input type="range" id="amp" min="0" max="2" step="0.05" value="1"><output id="ampOut">1.00×</output></label>
+      <label class="row">速度 <input type="range" id="speed" min="0.25" max="2" step="0.05" value="1"><output id="speedOut">1.00×</output></label>
+    </div>
+
+    <div class="spec">
+      <div class="group"><span class="label">モーション（実装メモ）</span></div>
+      <dl>
+        <dt>上下</dt><dd>±4px / 4.0s sine</dd>
+        <dt>左右</dt><dd>±1.5px / 6.0s sine</dd>
+        <dt>傾き</dt><dd>±3° / 4.0s・5.2s（位相ずらし）</dd>
+        <dt>ラベル回転</dt><dd>±6° / 8.0s（文字がゆっくり流れる）</dd>
+        <dt>タップ</dt><dd>0.6s squash → spring</dd>
+        <dt>reduced motion</dt><dd>静止（ヒーローポーズ）</dd>
+      </dl>
+    </div>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createFilmCanister, HERO_POSE } from './canister.js';
+
+const phone = document.getElementById('phone');
+const slot = document.getElementById('phoneSlot');
+const host = document.getElementById('canister');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+// Fit the 402×874 phone into the viewport
+const fit = () => {
+  const narrow = innerWidth < 820;
+  const availH = narrow ? Infinity : innerHeight - 48;
+  const s = Math.min(1, availH / 874, (innerWidth - 32) / 402);
+  slot.style.setProperty('--s', s);
+  phone.style.setProperty('--s', s);
+};
+addEventListener('resize', fit); fit();
+
+// ---------- scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+// The phone is scaled down on small screens, but keep the canvas sharp on retina
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2) * 1.5);
+renderer.setSize(200, 180, false);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.05;
+host.append(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+
+// Framed so the canister matches the size of the flat one in the design (≈ 66px long)
+const camera = new THREE.PerspectiveCamera(22, 200 / 180, 0.1, 100);
+camera.position.set(0, 0.6, 13.6);
+camera.lookAt(0, 0, 0);
+
+// Warm key from the bar lights at upper left, cool rim from the right like the design
+const key = new THREE.DirectionalLight('#fff6ea', 2.6);
+key.position.set(-3, 4, 4);
+scene.add(key);
+const rim = new THREE.DirectionalLight('#bcd0ff', 1.6);
+rim.position.set(3, 1, -3);
+scene.add(rim);
+scene.add(new THREE.HemisphereLight('#ffffff', '#30304a', 0.35));
+
+const canister = createFilmCanister({ frames: [] }); // film stays inside, so no frame images needed
+await canister.userData.ready;
+const spin = canister.getObjectByName('Spin');
+scene.add(canister);
+
+// ---------- motion ----------
+// Float: incommensurate periods so the drift never visibly repeats. Amplitudes are in model units
+// (1 unit ≈ 35px on screen at this framing).
+const H = HERO_POSE.rotation;
+const TAU = Math.PI * 2;
+const FLOAT = { y: 0.115, x: 0.045, rx: 0.05, ry: 0.06, rz: 0.04, spin: 0.1 };
+let amp = 1, speed = 1, clock = 0, tapAt = -Infinity, last = performance.now();
+
+const spring = (t, k, d) => 1 - Math.exp(-d * t) * Math.cos(k * t);
+// Tap: quick squash, then spring back with a small overshoot and a nudge of the label
+function tap(t) {
+  const u = Math.min(Math.max(t / 0.6, 0), 1);
+  if (u >= 1) return { s: 1, rz: 0, spin: 0 };
+  const s = u < 0.15 ? 1 - 0.08 * (u / 0.15) : 0.92 + 0.08 * spring((u - 0.15) / 0.85 * 1.1, 14, 6);
+  return { s, rz: Math.sin(u * Math.PI) * 0.08 * (1 - u), spin: Math.sin(u * Math.PI) * 0.35 };
+}
+
+function pose(t) {
+  const a = reduceMotion.matches ? 0 : amp;
+  const tp = tap(t - tapAt);
+  canister.position.set(
+    Math.sin(t / 6 * TAU) * FLOAT.x * a,
+    Math.sin(t / 4 * TAU) * FLOAT.y * a,
+    0,
+  );
+  canister.rotation.set(
+    H.x + Math.sin(t / 4 * TAU) * FLOAT.rx * a,
+    H.y + Math.sin(t / 5.2 * TAU + 1) * FLOAT.ry * a,
+    H.z + Math.cos(t / 4 * TAU) * FLOAT.rz * a + tp.rz,
+  );
+  canister.scale.setScalar(tp.s);
+  spin.rotation.y = Math.sin(t / 8 * TAU) * FLOAT.spin * a + tp.spin;
+}
+
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  clock += dt * speed;
+  pose(clock);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- controls ----------
+const bump = () => { if (!reduceMotion.matches) tapAt = clock; };
+host.addEventListener('click', bump);
+host.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bump(); } });
+
+const bind = (id, set) => {
+  const el = document.getElementById(id), out = document.getElementById(id + 'Out');
+  el.addEventListener('input', () => { set(+el.value); out.textContent = `${(+el.value).toFixed(2)}×`; });
+};
+bind('amp', v => { amp = v; });
+bind('speed', v => { speed = v; });
+
+window.__float = { freeze: t => { clock = t; speed = 0; }, ready: true };
+</script>
+</body>
+</html>
