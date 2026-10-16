@@ -843,7 +843,7 @@ renderer.setSize(W, H, false);
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.VSMShadowMap; // supports a real blur radius (PCFSoft ignores it)
 
 const scene = new THREE.Scene();
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
@@ -854,7 +854,8 @@ const key = new THREE.DirectionalLight('#fff6ea', 2.6); key.position.set(-3, 4, 
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
 Object.assign(key.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5, near: 0.5, far: 20 });
-key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 5;
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+key.shadow.radius = 9; key.shadow.blurSamples = 16; // soft, blurry cast shadow
 scene.add(key);
 // Invisible backdrop that only shows shadows: the canister and the hanging film cast onto the screen behind them
 const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.22 }));
