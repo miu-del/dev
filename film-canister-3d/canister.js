@@ -6,7 +6,7 @@
 //       Label               ← printed wrap (assets/label.jpg)
 //       Lip                 ← light-trap slot the film comes out of
 //       Film                ← film strip; pulled out by setFilmOut() (runtime) or morph targets (GLB)
-//       CapTop              ← plain end cap (slides off in the "Open" clip)
+//       CapTop              ← plain end cap
 //       CapSpool            ← end cap with the spool hub
 import * as THREE from 'three';
 
@@ -621,7 +621,7 @@ export function turntableQuaternion(t, out = new THREE.Quaternion()) {
 }
 
 // ---------- baked clips (exported into the GLB) ----------
-// Times in seconds. Idle, Spin and Feed loop; Open and Pull are one-shots (play Pull reversed to rewind).
+// Times in seconds. Idle, Spin, Turntable and Feed loop; Pull is a one-shot (play it reversed to rewind).
 // Pass the baked model to include Feed (its length depends on how many frame images it was built with).
 export function createClips(model) {
   const clips = [];
@@ -666,17 +666,6 @@ export function createClips(model) {
     clips.push(new THREE.AnimationClip('Turntable', dur, [
       new THREE.QuaternionKeyframeTrack('FilmCanister.quaternion', times, flat(rot)),
       new THREE.VectorKeyframeTrack('FilmCanister.position', times, pos),
-    ]));
-  }
-
-  {
-    const y0 = DIM.length / 2;
-    const times = [0, 0.18, 0.45, 1.2, 1.45, 1.6];
-    const pos = [0, y0, 0, 0, y0 - 0.02, 0, 0, y0 + 0.42, 0.05, 0, y0 + 0.42, 0.05, 0, y0 - 0.015, 0, 0, y0, 0];
-    const rot = flat([q(0, 0, 0), q(0, 0, 0), q(0.35, 0, 0), q(0.35, 0, 0), q(0, 0, 0), q(0, 0, 0)]);
-    clips.push(new THREE.AnimationClip('Open', 1.6, [
-      new THREE.VectorKeyframeTrack('CapTop.position', times, pos),
-      new THREE.QuaternionKeyframeTrack('CapTop.quaternion', times, rot),
     ]));
   }
 

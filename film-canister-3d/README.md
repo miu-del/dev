@@ -13,7 +13,7 @@
 | `canister.js` | モデル本体。`createFilmCanister()` で three.js の Group を返す。コマ画像の差し替えAPI付き |
 | `assets/label.jpg` | ラベルのアートワーク（幅＝缶の長さ方向。一周に足りない分は画像を繰り返して継ぎ足す） |
 | `assets/frame-*.jpg` | コマのサンプル画像 |
-| `film-canister.glb` | Web / Spline / Blender など。Idle・Spin・Turntable・Open・Pull・Feed のクリップ入り。フィルムは缶の中にしまった状態 |
+| `film-canister.glb` | Web / Spline / Blender など。Idle・Spin・Turntable・Pull・Feed のクリップ入り。フィルムは缶の中にしまった状態 |
 | `film-canister.usdz` | iOS（RealityKit / Quick Look）。アニメーションなし。リーダーが少し出た状態 |
 | `index.html` | ビューア。アニメーション確認、コマ／ラベル画像の差し替え、GLB / USDZ / PNG 書き出し |
 | `build.mjs` | GLB / USDZ / プレビュー画像を再生成 |
@@ -27,7 +27,7 @@ FilmCanister   ← 位置・姿勢・浮遊（Idle）・Y軸回転（Turntable�
     Lip        ← フィルムの出口（遮光口）
     Film       ← リーダー付きのフィルム。three.js では setFilmOut()、GLB ではモーフターゲット（Pull）で引き出す
     FilmFeed   ← 引き出し続けるループ用の終わりのないフィルム。setFilmFeed() / GLB の Feed クリップ
-    CapTop     ← 上フタ（Open で外れる）
+    CapTop     ← 上フタ
     CapSpool   ← スプール側のフタ
 ```
 
@@ -62,7 +62,6 @@ await canister.userData.setFrames([img1, img2]);  // あとから差し替え
 | Idle | ふわふわ浮く（4秒ループ） |
 | Spin | 缶が自分の軸まわりに1回転（3秒ループ） |
 | Turntable | 傾けた姿勢のまま、Y軸（真上を向いた軸）を中心に左回りで360°回転。少し止まる → 逆方向へ小さくタメる → くるっと素早く一回転して少し行き過ぎて戻る（2秒ループ。Idle とは同じノードを動かすので同時再生不可） |
-| Open | 上フタが外れて戻る（1.6秒） |
 | Pull | リーダーからフィルムを引き出す（2.2秒。逆再生で巻き戻し） |
 | Feed | フィルムを引き出し続ける（2.7秒ループ。Idle と同時再生できます） |
 

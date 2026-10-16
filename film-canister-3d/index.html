@@ -101,7 +101,6 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
         <button data-anim="turntable">左回りに一周<small>Turntable · 2s loop</small></button>
         <button data-anim="enter">転がって登場<small>Roll in · 1.4s</small></button>
         <button data-anim="tap">タップ反応<small>Tap · 0.6s</small></button>
-        <button data-anim="open">フタが開く<small>Open · 1.6s</small></button>
         <button data-anim="pull">フィルムを引き出す<small>Pull · 2.2s</small></button>
         <button data-anim="feed">引き出し続ける<small>Feed · loop</small></button>
         <button data-anim="rewind">巻き戻す<small>Rewind · 1.2s</small></button>
@@ -137,7 +136,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
         <button id="dl-png">PNG<small>透過 · 2x</small></button>
         <button id="dl-glb-file">同梱GLB<small>film-canister.glb</small></button>
       </div>
-      <p class="note">GLBには Idle / Spin / Turntable / Open / Pull / Feed のアニメーションクリップと、いま入れているコマ画像が入ります。Pull と Feed はモーフターゲットで再生します。</p>
+      <p class="note">GLBには Idle / Spin / Turntable / Pull / Feed のアニメーションクリップと、いま入れているコマ画像が入ります。Pull と Feed はモーフターゲットで再生します。</p>
     </div>
   </aside>
 </div>
@@ -207,7 +206,6 @@ const source = { label: DEFAULT_LABEL, frames: DEFAULT_FRAMES, fit: 'auto' };
 const canister = createFilmCanister(source);
 await canister.userData.ready;
 const spin = canister.getObjectByName('Spin');
-const capTop = canister.getObjectByName('CapTop');
 scene.add(canister);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -237,12 +235,11 @@ const ease = {
 };
 const clamp01 = t => Math.min(Math.max(t, 0), 1);
 const H = HERO_POSE.rotation;
-const capY = DIM.length / 2;
 
 let filmRest = 0; // film left outside after Pull, until Rewind
 
 const turnQ = new THREE.Quaternion();
-function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, capLift = 0, capTilt = 0, film = filmRest, feed = null, turn = 0 } = {}) {
+function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, film = filmRest, feed = null, turn = 0 } = {}) {
   // As the strip comes out (down-left), slide the cartridge up-right and zoom out so the frames stay in view
   const f = feed != null ? 1 : clamp01(film / FILM.pullOut);
   canister.userData.setFilmFeed(feed);
@@ -253,9 +250,6 @@ function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, ca
   canister.scale.setScalar(s * (1 - 0.5 * f));
   canister.userData.setFilmOut(film);
   spin.rotation.y = spinY;
-  capTop.position.y = capY + capLift;
-  capTop.position.z = capLift * 0.12;
-  capTop.rotation.x = capTilt;
 }
 
 const presets = {
@@ -292,17 +286,6 @@ const presets = {
       // quick squash, then spring back with a small overshoot
       const s = u < 0.15 ? 1 - 0.08 * (u / 0.15) : 0.92 + 0.08 * ease.spring((u - 0.15) / 0.85 * 1.1, 14, 6);
       pose({ s, rz: H.z + Math.sin(u * Math.PI) * 0.06 * (1 - u), spinY: ease.outBack(u) * 0.35 });
-    },
-  },
-  open: {
-    loop: false, dur: 1.6,
-    at: t => {
-      let lift = 0, tilt = 0;
-      if (t < 0.18) lift = -0.02 * (t / 0.18);                       // press
-      else if (t < 0.45) { const u = ease.outBack((t - 0.18) / 0.27, 2.2); lift = -0.02 + 0.44 * u; tilt = 0.35 * u; }
-      else if (t < 1.2) { lift = 0.42; tilt = 0.35; }
-      else { const u = ease.inOut(clamp01((t - 1.2) / 0.25)); lift = 0.42 * (1 - u); tilt = 0.35 * (1 - u); }
-      pose({ capLift: lift, capTilt: tilt, y: lift > 0 ? -lift * 0.05 : 0 });
     },
   },
   pull: {
