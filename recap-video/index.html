@@ -233,6 +233,12 @@ button { font: inherit; color: inherit; }
 .viewer .more { right: 14px; top: 58px; }
 .video-card { position: absolute; left: 18px; top: 112px; width: 366px; height: 651px; border-radius: 12px; overflow: hidden; background: #111; cursor: pointer; }
 .viewer.open .video-card { animation: cardIn 1s .05s var(--ease-out-expo) both; }
+/* Arriving from the patrone: the flying thumbnail stands in for the video frame until it lands */
+.viewer.from-morph .video-card { animation: none; opacity: 0; }
+.morph-card { position: absolute; left: 18px; top: 112px; width: 366px; height: 651px; border-radius: 12px; overflow: hidden; z-index: 26; pointer-events: none;
+  backface-visibility: hidden; box-shadow: 0 24px 60px -10px rgba(0,0,0,.6); background: #111; }
+.morph-card[hidden] { display: none; }
+.morph-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
 @keyframes cardIn { from { opacity: 0; transform: scale(.6); filter: blur(12px); } 60% { filter: blur(0); } to { opacity: 1; transform: none; filter: blur(0); } }
 .video-card video { width: 100%; height: 100%; display: block; object-fit: cover; }
 .paused-badge { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px; border-radius: 32px; background: rgba(0,0,0,.45); display: grid; place-items: center; opacity: 0; transition: opacity .2s ease; pointer-events: none; }
@@ -385,7 +391,7 @@ button { font: inherit; color: inherit; }
           <svg width="18" height="4" viewBox="0 0 18 4" fill="#fff"><circle cx="2" cy="2" r="2"/><circle cx="9" cy="2" r="2"/><circle cx="16" cy="2" r="2"/></svg>
         </button>
         <div class="video-card" id="videoCard" role="button" tabindex="0" aria-label="再生 / 一時停止">
-          <video id="video" src="assets/recap.mp4" muted loop playsinline preload="auto"></video>
+          <video id="video" src="assets/recap.mp4" poster="assets/recap-poster.jpg" muted loop playsinline preload="auto"></video>
           <div class="paused-badge"><svg width="22" height="24" viewBox="0 0 22 24"><path d="M3 2v20l17-10z" fill="#fff"/></svg></div>
           <div class="scrub"><i id="scrub"></i></div>
         </div>
@@ -405,6 +411,7 @@ button { font: inherit; color: inherit; }
         </div>
       </section>
 
+      <div class="morph-card" id="morph" hidden aria-hidden="true"><img src="assets/recap-poster.jpg" alt=""></div>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
       <div class="home" aria-hidden="true"></div>
     </div>
@@ -618,13 +625,14 @@ button { font: inherit; color: inherit; }
     document.querySelectorAll('#steps button').forEach(b => b.dataset.go === next ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
 
     if (next === 'album' || next === 'viewer') R3.step = next;
+    if (next !== 'viewer') { $('morph').hidden = true; viewer.classList.remove('from-morph'); }
     if (next === 'album') {
       recap.classList.remove('open'); viewer.classList.remove('open');
       return;
     }
     if (next === 'viewer') {
       viewer.classList.add('open');
-      player.start();
+      if (viewer.classList.contains('from-morph')) player.stop(); else player.start();
       timers.push(setTimeout(() => recap.classList.remove('open'), 400));
       return;
     }
@@ -666,9 +674,11 @@ button { font: inherit; color: inherit; }
         filmRaf = requestAnimationFrame(feed);
       }
     } else if (next === 'exit') {
-      // 動画を見る: the patrone reels its film in and rolls away, then the video rises out of the centre
-      R3.exitAt = performance.now();
-      timers.push(setTimeout(() => goto('viewer'), reduceMotion.matches ? 200 : 850));
+      // 動画を見る: the patrone turns (model Turntable); about half way round it becomes the video thumbnail,
+      // which finishes the turn and flies into the video frame of the next screen
+      R3.exitAt = performance.now(); R3.swapped = false; morphStarted = false;
+      // the 3D script fires 'canister-swap'; without it (2D fallback) hand over on a timer
+      timers.push(setTimeout(startMorph, reduceMotion.matches ? 0 : recap.classList.contains('three') ? 1500 : 350));
     }
   };
 
@@ -680,6 +690,33 @@ button { font: inherit; color: inherit; }
     replayClass($('canisterIn'), 'tap');
   });
   $('watch').addEventListener('click', () => goto('exit'));
+
+  // ---- Patrone → video thumbnail → video frame ----
+  // The thumbnail (the video's first frame) sits exactly on screen 5's video frame and is animated from the cartridge's
+  // spot: edge-on, it finishes the turn to face the viewer, then flies into the frame and settles with a slight overshoot.
+  let morphStarted = false;
+  const startMorph = () => {
+    if (morphStarted || step !== 'exit') return;
+    morphStarted = true;
+    const card = $('morph');
+    card.hidden = false;
+    const P = 'perspective(1100px) ';
+    const anim = card.animate(reduceMotion.matches ? [{ opacity: 0 }, { opacity: 1 }] : [
+      { transform: P + 'translate(3px, -145px) scale(.3) rotateY(-90deg)', borderRadius: '34px', easing: 'cubic-bezier(.2, .7, .3, 1)' },
+      { transform: P + 'translate(3px, -145px) scale(.36) rotateY(0deg)', borderRadius: '30px', offset: .32, easing: 'cubic-bezier(.55, 0, .2, 1)' },
+      { transform: P + 'translate(0, 0) scale(1.02) rotateY(0deg)', borderRadius: '12px', offset: .84, easing: 'ease-out' },
+      { transform: P + 'translate(0, 0) scale(1) rotateY(0deg)', borderRadius: '12px' },
+    ], { duration: reduceMotion.matches ? 250 : 1050, fill: 'both' });
+    // the video screen fades in underneath while the thumbnail is still flying; its own frame stays hidden until it lands
+    timers.push(setTimeout(() => { viewer.classList.add('from-morph'); goto('viewer'); }, reduceMotion.matches ? 0 : 450));
+    anim.finished.then(() => {
+      if (step !== 'viewer') return;
+      viewer.classList.remove('from-morph');
+      card.hidden = true; anim.cancel();
+      player.start();
+    }).catch(() => {});
+  };
+  addEventListener('canister-swap', startMorph);
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => goto('album')));
   $('steps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) goto(b.dataset.go); });
   $('windMode').addEventListener('click', e => {
@@ -746,7 +783,7 @@ button { font: inherit; color: inherit; }
 // The flow script above owns the state (window.recapState); this only draws it.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createFilmCanister, FILM, FEED_REACH, HERO_POSE } from './canister/canister.js';
+import { createFilmCanister, FILM, FEED_REACH, HERO_POSE, turntableMotion } from './canister/canister.js';
 
 const recap = document.getElementById('recap');
 const canvas = document.getElementById('stage3d');
@@ -840,9 +877,16 @@ const frame = now => {
   // Leaving the intro: swing level and move up over 1.6s
   const l = S.step === 'intro' ? 0 : rm ? 1 : expo(clamp01((now - S.levelAt) / 1600));
   const float = rm ? 0 : Math.sin(now / 640) * 0.04 * (1 - l);
-  // Exit: reel the film in, then roll away into the distance (rolling = turning about its own axis)
-  const x = S.step === 'exit' || S.step === 'viewer' ? (rm ? 1 : clamp01((now - S.exitAt) / 950)) : 0;
-  const roll = x * x * 10;
+  // Exit (動画を見る): the model's Turntable — a still beat (the film reels in), a small wind-up, then a fast
+  // counter-clockwise whip. About half way round, the cartridge hands over to the video thumbnail (DOM).
+  const exiting = S.step === 'exit' || S.step === 'viewer';
+  const tE = exiting ? (rm ? 9 : (now - S.exitAt) / 1000) : 0;
+  const x = exiting ? Math.max(1e-6, clamp01(tE / 0.95)) : 0;
+  const turn = exiting ? turntableMotion(Math.min(tE, 1.999)) : { angle: 0, y: 0 };
+  if (exiting && !S.swapped && (turn.angle >= Math.PI * 0.85 || rm)) {
+    S.swapped = true;
+    window.dispatchEvent(new Event('canister-swap'));
+  }
 
   q.copy(HERO_Q).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (1 - e) * -0.28));
   q.slerp(LEVEL_Q, l);
@@ -858,16 +902,18 @@ const frame = now => {
   const tt = (now - S.levelAt - (S.popDelay ?? 900) - 120) / 1000;
   if (S.step !== 'intro' && !rm) q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.exp(-(tt * tt) / 0.01) * 0.04));
   p.copy(HERO_POS).add(new THREE.Vector3(0, -0.35 * (1 - e) + float, 0)).lerp(LEVEL_POS, l);
+  if (turn.angle) q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), turn.angle));
   canister.quaternion.copy(q);
-  canister.position.copy(p).add(new THREE.Vector3(0, roll * 0.06, -roll));
+  canister.position.copy(p).add(new THREE.Vector3(0, turn.y, 0));
   const tap = tapPose(S, now);
   if (tap.rz && !rm) canister.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), tap.rz));
   canister.scale.setScalar((0.72 + 0.28 * e) * (rm ? 1 : tap.sc));
   // the model turns its Spin node; here only the label turns, so the film slot stays put for the import
   label.rotation.y = Math.PI + tap.spin;
-  spin.rotation.y = -roll / 0.5;
-  canvas.style.opacity = x ? String(1 - clamp01((x - 0.55) / 0.45)) : '';
-  const reel = (1 - clamp01(x / 0.3)) ** 3;
+  spin.rotation.y = 0;
+  // from about half a turn the cartridge fades out while the thumbnail turns in
+  canvas.style.opacity = exiting ? String(1 - clamp01((turn.angle - Math.PI * 0.85) / (Math.PI * 0.5))) : '';
+  const reel = (1 - clamp01(tE / 0.3)) ** 3;
   if (feeding && !x) {
     canister.userData.setFilmOut(0);
     canister.userData.setFilmFeed(feedAt(U));

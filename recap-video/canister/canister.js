@@ -6,7 +6,7 @@
 //       Label               ← printed wrap (assets/label.jpg)
 //       Lip                 ← light-trap slot the film comes out of
 //       Film                ← film strip; pulled out by setFilmOut() (runtime) or morph targets (GLB)
-//       CapTop              ← plain end cap (slides off in the "Open" clip)
+//       CapTop              ← plain end cap
 //       CapSpool            ← end cap with the spool hub
 import * as THREE from 'three';
 
@@ -594,8 +594,34 @@ function heroRotation() {
 }
 export const HERO_POSE = { rotation: heroRotation() };
 
+// Turntable: hero pose turned by +angle about world +Y (positive = counter-clockwise when viewed from above).
+// Timing: a beat of stillness, a small wind-up the other way (the "tame"), then a fast 360° whip that
+// overshoots a touch and settles. Ends exactly one turn later, so the loop is seamless.
+export const TURNTABLE_DURATION = 2;
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+const TT = { hold: 0.35, windEnd: 0.75, spinEnd: 1.4, wind: 0.26 /* rad, about 15° */ };
+export function turntableMotion(t) {
+  t = ((t % TURNTABLE_DURATION) + TURNTABLE_DURATION) % TURNTABLE_DURATION;
+  const full = Math.PI * 2;
+  if (t < TT.hold) return { angle: 0, y: 0 };
+  if (t < TT.windEnd) {
+    const u = (t - TT.hold) / (TT.windEnd - TT.hold);
+    const e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;   // ease-in-out into the wind-up
+    return { angle: -TT.wind * e, y: -0.05 * e };                  // turns back and crouches a little
+  }
+  if (t < TT.spinEnd) {
+    const u = (t - TT.windEnd) / (TT.spinEnd - TT.windEnd), k = 0.7;
+    const e = 1 + (k + 1) * (u - 1) ** 3 + k * (u - 1) ** 2;      // ease-out-back: launches fast, small overshoot
+    return { angle: -TT.wind + (full + TT.wind) * e, y: -0.05 + 0.13 * Math.sin(Math.min(u * 1.6, 1) * Math.PI) + 0.05 * Math.min(u * 3, 1) };
+  }
+  return { angle: full, y: 0 };
+}
+export function turntableQuaternion(t, out = new THREE.Quaternion()) {
+  return out.setFromEuler(HERO_POSE.rotation).premultiply(new THREE.Quaternion().setFromAxisAngle(Y_AXIS, turntableMotion(t).angle));
+}
+
 // ---------- baked clips (exported into the GLB) ----------
-// Times in seconds. Idle, Spin and Feed loop; Open and Pull are one-shots (play Pull reversed to rewind).
+// Times in seconds. Idle, Spin, Turntable and Feed loop; Pull is a one-shot (play it reversed to rewind).
 // Pass the baked model to include Feed (its length depends on how many frame images it was built with).
 export function createClips(model) {
   const clips = [];
@@ -628,14 +654,18 @@ export function createClips(model) {
     ]));
   }
 
+  // Turntable: the whole posed cartridge winds up, then whips 360° counter-clockwise (seen from above) around world Y
   {
-    const y0 = DIM.length / 2;
-    const times = [0, 0.18, 0.45, 1.2, 1.45, 1.6];
-    const pos = [0, y0, 0, 0, y0 - 0.02, 0, 0, y0 + 0.42, 0.05, 0, y0 + 0.42, 0.05, 0, y0 - 0.015, 0, 0, y0, 0];
-    const rot = flat([q(0, 0, 0), q(0, 0, 0), q(0.35, 0, 0), q(0.35, 0, 0), q(0, 0, 0), q(0, 0, 0)]);
-    clips.push(new THREE.AnimationClip('Open', 1.6, [
-      new THREE.VectorKeyframeTrack('CapTop.position', times, pos),
-      new THREE.QuaternionKeyframeTrack('CapTop.quaternion', times, rot),
+    const n = 101, dur = TURNTABLE_DURATION, times = [], rot = [], pos = [];
+    for (let i = 0; i < n; i++) {
+      const t = i === n - 1 ? dur - 1e-6 : (i / (n - 1)) * dur; // last key = full turn, same pose as the first
+      times.push((i / (n - 1)) * dur);
+      rot.push(turntableQuaternion(t));
+      pos.push(0, turntableMotion(t).y, 0);
+    }
+    clips.push(new THREE.AnimationClip('Turntable', dur, [
+      new THREE.QuaternionKeyframeTrack('FilmCanister.quaternion', times, flat(rot)),
+      new THREE.VectorKeyframeTrack('FilmCanister.position', times, pos),
     ]));
   }
 
