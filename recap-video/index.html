@@ -450,6 +450,14 @@ button { font: inherit; color: inherit; }
     </fieldset>
 
     <fieldset class="group">
+      <legend>自動で流れる速さ（コマ/秒）</legend>
+      <div class="range">
+        <input type="range" id="feedFps" min="0.1" max="1.5" step="0.05" value="0.35" aria-label="自動で流れる速さ（コマ/秒）">
+        <output id="feedFpsOut" for="feedFps">0.35</output>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
       <legend>ローディング時間</legend>
       <div class="range">
         <input type="range" id="loadSecs" min="10" max="20" step="1" value="20" aria-label="ローディング時間（秒）">
@@ -534,22 +542,23 @@ button { font: inherit; color: inherit; }
   };
 
   // The import always takes the set time, whether or not the viewer winds the film.
-  // In auto mode the film comes out at 1.96× the import's pace (0.98 × 2), so it is all out about halfway through the import.
-  const AUTO_FILM = 1.96;
+  // Auto feed runs at its own steady speed in frames per second (rail slider), independent of the loading time.
+  // One frame = the model's frame pitch (38mm) on screen; the 3D script hands over the exact px.
+  const feedPxPerMs = () => $('feedFps').value * (R3.framePx || 203.7) / 1000;
   // On the patrone screen the film already shows about 4/5 of the first photo; the import picks up from there
   const INTRO_FILM_PX = 2.35 * 134;
   const startLoading = () => {
     const T = $('loadSecs').value * 1000;
     const t0 = performance.now();
-    let lastP = 0;
+    let last = t0;
     const tick = now => {
       const u = (now - t0) / T;
       // Mostly linear with a gentle surge and lull, so it reads as real work rather than a timer
       const p = u < 1 ? u - .05 * Math.sin(2 * Math.PI * u) : 1;
       setProgress(p);
       // Auto feed adds to wherever the film is, so the viewer's own winding stays; it pauses while they hold the film
-      if (autoFeedOn() && !wind) setPulled(Math.max(pulled + (p - lastP) * AUTO_FILM, popAt(now - t0) * leaderPopPx() / travel()));
-      lastP = p;
+      if (autoFeedOn() && !wind) setPulled(Math.max(pulled + feedPxPerMs() * (now - last) / travel(), popAt(now - t0) * leaderPopPx() / travel()));
+      last = now;
       if (u < 1) loadRaf = requestAnimationFrame(tick);
       // straight into the patrone → thumbnail → video transition, or wait on 動画を見る (rail toggle)
       else goto(autoAdvance ? 'exit' : 'done');
@@ -683,9 +692,8 @@ button { font: inherit; color: inherit; }
       if (!wasOpen) setPulled(1);
       // Auto film keeps running at the same pace after the import is done (looping) until 動画を見る; paused while held
       if (autoFeedOn()) {
-        const rate = AUTO_FILM / ($('loadSecs').value * 1000);
         let last = performance.now();
-        const feed = now => { if (!wind) setPulled(pulled + rate * (now - last)); last = now; feedRaf = requestAnimationFrame(feed); };
+        const feed = now => { if (!wind) setPulled(pulled + feedPxPerMs() * (now - last) / travel()); last = now; feedRaf = requestAnimationFrame(feed); };
         feedRaf = requestAnimationFrame(feed);
       }
     } else if (next === 'exit') {
@@ -750,6 +758,7 @@ button { font: inherit; color: inherit; }
     if (step === 'loading') goto('intro');
   });
   $('loadSecs').addEventListener('input', e => { $('loadSecsOut').textContent = e.target.value + 's'; });
+  $('feedFps').addEventListener('input', e => { $('feedFpsOut').textContent = (+e.target.value).toFixed(2); });
 
   // ---- Player (screen 5): the finished recap video ----
   const VIDEO_SRC = 'assets/recap.mp4';
@@ -816,6 +825,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 // leader is off-screen — the model's endless Feed strip takes over. Feed is placed so its frames sit exactly where the
 // Pull strip's frames are (same photo, same spot), so the hand-over is invisible and the film can run for as long as needed.
 const L_SWITCH = 5.4;
+window.recapState.framePx = FILM.pitch * 134; // one frame of film on screen
 window.recapState.leaderPopPx = FILM.leader * 0.95 * 134; // pullCurve's lead, in screen px (PX)
 // Manual start: leader + half of frame 1 out, plus the ~0.26 units of strip hidden behind the cartridge
 window.recapState.manualPopPx = (FILM.leader + (FILM.pitch - FILM.frameW) / 2 + FILM.frameW / 2 + 0.26) * 134;
