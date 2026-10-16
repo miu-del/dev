@@ -447,6 +447,14 @@ button { font: inherit; color: inherit; }
     </fieldset>
 
     <fieldset class="group">
+      <legend>読み込み完了後</legend>
+      <div class="seg" id="advMode">
+        <button type="button" data-adv="auto" aria-pressed="true">そのまま動画へ</button>
+        <button type="button" data-adv="button" aria-pressed="false">「動画を見る」で進む</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
       <legend>ローディング時間</legend>
       <div class="range">
         <input type="range" id="loadSecs" min="10" max="20" step="1" value="20" aria-label="ローディング時間（秒）">
@@ -543,7 +551,8 @@ button { font: inherit; color: inherit; }
       setProgress(p);
       if (!manual) setPulled(Math.max(p * AUTO_FILM, popAt(now - t0) * leaderPopPx() / travel()));
       if (u < 1) loadRaf = requestAnimationFrame(tick);
-      else goto('done');
+      // straight into the patrone → thumbnail → video transition, or wait on 動画を見る (rail toggle)
+      else goto(autoAdvance ? 'exit' : 'done');
     };
     loadRaf = requestAnimationFrame(tick);
   };
@@ -725,6 +734,12 @@ button { font: inherit; color: inherit; }
   addEventListener('canister-swap', startMorph);
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => goto('album')));
   $('steps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) goto(b.dataset.go); });
+  let autoAdvance = true;
+  $('advMode').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    autoAdvance = b.dataset.adv === 'auto';
+    [...$('advMode').children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  });
   $('windMode').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     manual = b.dataset.mode === 'manual';
