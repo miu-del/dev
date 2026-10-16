@@ -159,7 +159,7 @@ button { font: inherit; color: inherit; }
 }
 /* Black glow behind the 3D canister: its own layer, so it does not darken what shows through the perforations */
 .glow3d {
-  position: absolute; left: 50%; top: 92px; width: 400px; height: 400px; margin-left: -200px; z-index: 2; pointer-events: none; opacity: 0;
+  position: absolute; left: 50%; top: 50px; width: 400px; height: 400px; margin-left: -200px; z-index: 2; pointer-events: none; opacity: 0;
   background: radial-gradient(closest-side, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, transparent);
   transition: top 1.6s var(--ease-out-expo), width 1.6s var(--ease-out-expo), height 1.6s var(--ease-out-expo), margin-left 1.6s var(--ease-out-expo), opacity .4s ease;
 }
@@ -169,8 +169,10 @@ button { font: inherit; color: inherit; }
   background: linear-gradient(rgba(28,28,30,0), #1C1C1E 130px); }
 .recap[data-step="done"] .film-shade, .recap[data-step="exit"] .film-shade { opacity: 1; }
 .recap.three .stage3d, .recap.three .glow3d { opacity: 1; }
+/* Patrone screen: the film peeking out fades before the album title */
+.recap[data-step="intro"] .stage3d { -webkit-mask-image: linear-gradient(#000 0, #000 425px, transparent 462px); mask-image: linear-gradient(#000 0, #000 425px, transparent 462px); }
 /* Tap target over the patrone on its own screen */
-.tap3d { position: absolute; left: 60px; top: 165px; width: 285px; height: 255px; z-index: 5; border: 0; padding: 0; background: none; cursor: pointer; display: none; -webkit-tap-highlight-color: transparent; }
+.tap3d { position: absolute; left: 60px; top: 123px; width: 285px; height: 255px; z-index: 5; border: 0; padding: 0; background: none; cursor: pointer; display: none; -webkit-tap-highlight-color: transparent; }
 .recap[data-step="intro"] .tap3d { display: block; }
 .tap3d:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 24px; }
 .canister-in.tap img { animation: tapPop .6s both; }
@@ -533,7 +535,10 @@ button { font: inherit; color: inherit; }
   // The import always takes the set time, whether or not the viewer winds the film.
   // In auto mode the film comes out at 1.96× the import's pace (0.98 × 2), so it is all out about halfway through the import.
   const AUTO_FILM = 1.96;
+  // On the patrone screen the film already shows about 4/5 of the first photo; the import picks up from there
+  const INTRO_FILM_PX = 2.35 * 134;
   const startLoading = () => {
+    const base = pulled;
     const T = $('loadSecs').value * 1000;
     const t0 = performance.now();
     const tick = now => {
@@ -541,7 +546,7 @@ button { font: inherit; color: inherit; }
       // Mostly linear with a gentle surge and lull, so it reads as real work rather than a timer
       const p = u < 1 ? u - .05 * Math.sin(2 * Math.PI * u) : 1;
       setProgress(p);
-      if (!manual) setPulled(Math.max(p * AUTO_FILM, popAt(now - t0) * leaderPopPx() / travel()));
+      if (!manual) setPulled(Math.max(base + p * AUTO_FILM, popAt(now - t0) * leaderPopPx() / travel()));
       if (u < 1) loadRaf = requestAnimationFrame(tick);
       // straight into the patrone → thumbnail → video transition, or wait on 動画を見る (rail toggle)
       else goto(autoAdvance ? 'exit' : 'done');
@@ -578,13 +583,13 @@ button { font: inherit; color: inherit; }
     filmRaf = requestAnimationFrame(tick);
   };
   const startManual = () => {
-    pulled = 0; setStrip(0);
+    const base = pulled;
     recap.classList.remove('touched');
     // The leader pops out on its own (the model's pull timing), giving something to grab
     const t0 = performance.now();
     const pop = now => {
       if (recap.classList.contains('touched')) return;
-      setPulled(popAt(now - t0) * manualPopPx() / travel());
+      setPulled(Math.max(base, popAt(now - t0) * manualPopPx() / travel()));
       if (now - t0 < popDelay() + 700) filmRaf = requestAnimationFrame(pop);
     };
     filmRaf = requestAnimationFrame(pop);
@@ -644,7 +649,7 @@ button { font: inherit; color: inherit; }
     viewer.classList.remove('open');
     const wasOpen = recap.classList.contains('open');
     const snap = next === 'intro' || !wasOpen;
-    if (next === 'intro') { pulled = 0; R3.pulled = 0; R3.introAt = performance.now(); R3.taps = 0; R3.tapAt = -1e9; }
+    if (next === 'intro') { setPulled(INTRO_FILM_PX / travel()); R3.introAt = performance.now(); R3.taps = 0; R3.tapAt = -1e9; }
     // The patrone levels out when leaving the intro; any other way in, it is already level
     R3.levelAt = snap ? -1e9 : R3.step === 'intro' ? performance.now() : R3.levelAt;
     R3.step = next;
@@ -860,7 +865,7 @@ const cycle = canister.userData.feedCycle;
 
 // Poses. Intro: the illustration's tilted hero pose. Loading/done: level, plain end left, film hanging straight down.
 const HERO_Q = new THREE.Quaternion().setFromEuler(HERO_POSE.rotation);
-const HERO_POS = toWorld(204, 292);
+const HERO_POS = toWorld(204, 250); // high enough that the film peeking out clears the album title
 // Winding pose: lying on its side, then tipped so it is not dead level — left (plain) end higher, the spool end on the right
 // turned toward the viewer (~25°), top tipped slightly toward the camera. The film hangs from the cartridge, so it runs down-left.
 const LEVEL_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, -0.28, -0.03))
