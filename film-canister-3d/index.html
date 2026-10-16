@@ -98,6 +98,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
       <div class="btns" id="anims">
         <button data-anim="idle" aria-pressed="true">ふわふわ<small>Idle · loop</small></button>
         <button data-anim="spin">くるっと回転<small>Spin · loop</small></button>
+        <button data-anim="turntable">左回りに一周<small>Turntable · 4s loop</small></button>
         <button data-anim="enter">転がって登場<small>Roll in · 1.4s</small></button>
         <button data-anim="tap">タップ反応<small>Tap · 0.6s</small></button>
         <button data-anim="open">フタが開く<small>Open · 1.6s</small></button>
@@ -136,7 +137,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
         <button id="dl-png">PNG<small>透過 · 2x</small></button>
         <button id="dl-glb-file">同梱GLB<small>film-canister.glb</small></button>
       </div>
-      <p class="note">GLBには Idle / Spin / Open / Pull / Feed のアニメーションクリップと、いま入れているコマ画像が入ります。Pull と Feed はモーフターゲットで再生します。</p>
+      <p class="note">GLBには Idle / Spin / Turntable / Open / Pull / Feed のアニメーションクリップと、いま入れているコマ画像が入ります。Pull と Feed はモーフターゲットで再生します。</p>
     </div>
   </aside>
 </div>
@@ -154,7 +155,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
 import {
-  createFilmCanister, createClips, bakeFilmMorphs, pullCurve, HERO_POSE, DIM, FILM, PULL_DURATION, FEED_SECONDS_PER_FRAME,
+  createFilmCanister, createClips, bakeFilmMorphs, pullCurve, HERO_POSE, DIM, FILM, PULL_DURATION, FEED_SECONDS_PER_FRAME, TURNTABLE_DURATION,
   DEFAULT_LABEL, DEFAULT_FRAMES,
 } from './canister.js';
 
@@ -240,12 +241,15 @@ const capY = DIM.length / 2;
 
 let filmRest = 0; // film left outside after Pull, until Rewind
 
-function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, capLift = 0, capTilt = 0, film = filmRest, feed = null } = {}) {
+const turnQ = new THREE.Quaternion();
+function pose({ x = 0, y = 0, rx = H.x, ry = H.y, rz = H.z, s = 1, spinY = 0, capLift = 0, capTilt = 0, film = filmRest, feed = null, turn = 0 } = {}) {
   // As the strip comes out (down-left), slide the cartridge up-right and zoom out so the frames stay in view
   const f = feed != null ? 1 : clamp01(film / FILM.pullOut);
   canister.userData.setFilmFeed(feed);
   canister.position.set(x + 0.6 * f, y + 0.85 * f, 0);
   canister.rotation.set(rx, ry, rz);
+  // turn: extra rotation about the world Y axis (positive = counter-clockwise seen from above)
+  if (turn) canister.quaternion.premultiply(turnQ.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, turn));
   canister.scale.setScalar(s * (1 - 0.5 * f));
   canister.userData.setFilmOut(film);
   spin.rotation.y = spinY;
@@ -266,6 +270,10 @@ const presets = {
   spin: {
     loop: true, dur: 3,
     at: t => pose({ spinY: (t / 3) * Math.PI * 2, y: Math.sin((t / 3) * Math.PI * 2) * 0.03 }),
+  },
+  turntable: {
+    loop: true, dur: TURNTABLE_DURATION,
+    at: t => pose({ turn: (t / TURNTABLE_DURATION) * Math.PI * 2 }),
   },
   enter: {
     loop: false, dur: 1.4,

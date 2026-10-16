@@ -594,6 +594,14 @@ function heroRotation() {
 }
 export const HERO_POSE = { rotation: heroRotation() };
 
+// Turntable: hero pose turned by +angle about world +Y (positive = counter-clockwise when viewed from above).
+export const TURNTABLE_DURATION = 4;
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+export function turntableQuaternion(t, out = new THREE.Quaternion()) {
+  const angle = (t / TURNTABLE_DURATION) * Math.PI * 2;
+  return out.setFromEuler(HERO_POSE.rotation).premultiply(new THREE.Quaternion().setFromAxisAngle(Y_AXIS, angle));
+}
+
 // ---------- baked clips (exported into the GLB) ----------
 // Times in seconds. Idle, Spin and Feed loop; Open and Pull are one-shots (play Pull reversed to rewind).
 // Pass the baked model to include Feed (its length depends on how many frame images it was built with).
@@ -625,6 +633,19 @@ export function createClips(model) {
     }
     clips.push(new THREE.AnimationClip('Spin', dur, [
       new THREE.QuaternionKeyframeTrack('Spin.quaternion', times, flat(rot)),
+    ]));
+  }
+
+  // Turntable: the whole posed cartridge turns 360° counter-clockwise (seen from above) around the world Y axis
+  {
+    const n = 17, dur = TURNTABLE_DURATION, times = [], rot = [];
+    for (let i = 0; i < n; i++) {
+      const t = (i / (n - 1)) * dur;
+      times.push(t);
+      rot.push(turntableQuaternion(t));
+    }
+    clips.push(new THREE.AnimationClip('Turntable', dur, [
+      new THREE.QuaternionKeyframeTrack('FilmCanister.quaternion', times, flat(rot)),
     ]));
   }
 
